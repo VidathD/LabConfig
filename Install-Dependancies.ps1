@@ -1,7 +1,8 @@
 $CurrentLocation = Get-Location
 $PwshPath  = '$env:ProgramFiles\PowerShell\7\pwsh.exe'
 $TestParams = "Test-Path -Path `"$PwshPath`" -PathType Leaf"
-$Installer = Get-ChildItem | Where-Object {$_.Name -like 'PowerShell-*-win-x64.msi'} | Select-Object Name
+$Installer = 'PowerShell-7.2.4-win-x64.msi'
+#$Installer = Get-ChildItem | Where-Object {$_.Name -like 'PowerShell-*-win-x64.msi'} | Select-Object Name
 
 if (-Not (Invoke-Expression $TestParams))  {
     Write-Host 'Powershell not installed!'
