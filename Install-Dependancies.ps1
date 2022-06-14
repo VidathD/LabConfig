@@ -1,7 +1,7 @@
 $CurrentLocation = Get-Location
 $PwshPath  = '$env:ProgramFiles\PowerShell\7\pwsh.exe'
 $TestParams = "Test-Path -Path `"$PwshPath`" -PathType Leaf"
-$Installer = 
+$Installer = Get-ChildItem | Where-Object {$_.Name -like 'PowerShell-*-win-x64.msi'} | Select-Object Name
 
 if (-Not (Invoke-Expression $TestParams))  {
     Write-Host 'Powershell not installed!'
@@ -10,18 +10,20 @@ if (-Not (Invoke-Expression $TestParams))  {
         $InstallIncluded = Read-Host
 
         if ($InstallIncluded -eq 'Y' -or $InstallIncluded -eq 'Yes') {
-            if (-Not (Test-Path "$CurrentLocation\Setups\$Installer" -PathType Leaf)) {
+            if (-Not ("$CurrentLocation\Setups\$Installer")) {
                 Write-Host 'Included Powershell installer not found. Please install powershell manually and run the script again.'
             }
-            Set-Location "$CurrentLocation\Setups"
-            Write-Host 'Installing...'
-            msiexec.exe /package $Installer /passive ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ADD_FILE_CONTEXT_MENU_RUNPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1 USE_MU=1 ENABLE_MU=1
-            while (-Not ($Test)) {
-                Start-Sleep -Seconds 1
-                $Test = Invoke-Expression $TestParams
+            else {
+                Set-Location "$CurrentLocation\Setups"
+                Write-Host 'Installing...'
+                msiexec.exe /package $Installer /passive ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ADD_FILE_CONTEXT_MENU_RUNPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1 USE_MU=1 ENABLE_MU=1
+                while (-Not ($Test)) {
+                    Start-Sleep -Seconds 1
+                    $Test = Invoke-Expression $TestParams
+                }
+                Start-Sleep -Seconds 10
+                Set-Location $CurrentLocation
             }
-            Start-Sleep -Seconds 10
-            Set-Location $CurrentLocation
         }
         elseif ($InstallIncluded -eq 'N' -or $InstallIncluded -eq 'No') {
             Write-Host 'Install Powershell and run the script again.'
