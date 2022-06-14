@@ -9,7 +9,7 @@ function Get-Info {
 
 
 function Test-Activation {
-    if (Powershell "(Get-WmiObject -query 'select * from SoftwareLicensingService').OA3xOriginalProductKey") {
+    if (Get-CIMInstance -query "select Name, LicenseStatus from SoftwareLicensingProduct where LicenseStatus=1" | Where-Object Name -like '*Windows*' |Select-Object LicenseStatus) {
         $True
     }
     else {
@@ -23,9 +23,11 @@ function Set-WindowsActivation {
     Write-Host 'Activating Windows...'
     if (Test-Activation) {
         Write-Host 'Windows already activated!'
-        break
     }
-    ./KMS.bat
+    else{
+        ./KMS.bat
+    }
+
     while (-NOT (Test-Activation)) {
         Write-Host 'Windows activation failed. Do you want to try again? (Yes[Y]/No[N])'
         $Activate = Read-Host
