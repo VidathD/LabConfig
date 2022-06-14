@@ -64,20 +64,24 @@ function Set-WindowsActivation {
 
 
 function Set-Users {
-    New-LocalUser -Name "Student" -Password $StudentPassword -FullName "Student" -Description "Student account with low privileges." -AccountNeverExpires -PasswordNeverExpires -UserMayNotChangePassword
-    Add-LocalGroupMember -Group "Guests" -Member "Student"
-
-    Set-LocalUser -Name "BCCS" -Password $BCCSPassword -FullName "BCCS" -Description "Main admin account of BCCS." -PasswordNeverExpires $True -UserMayChangePassword $True
+    New-LocalUser -Name 'Student' -Password $StudentPassword -FullName 'Student' -Description 'Student account with low privileges.' -AccountNeverExpires -PasswordNeverExpires -UserMayNotChangePassword
+    Add-LocalGroupMember -Group 'Users' -Member 'Student'
+    Set-StudentPermissions
+    Remove-LocalGroupMember -Group 'Users' -Member 'Student'
+    Add-LocalGroupMember -Group 'Guests' -Member 'Student'
+    Set-LocalUser -Name 'BCCS' -Password $BCCSPassword -FullName 'BCCS' -Description 'Main admin account of BCCS.' -PasswordNeverExpires $True -UserMayChangePassword $True
 }
 
 
 function Set-StudentPermissions {
 
-    Write-Host "Log into Student account, log back into BCCS account and press enter. Do NOT sign out of Student account! Use Win + L to lock screen."
-    Read-Host
-
     Copy-Item -Path "$CurrentLocation\CSImages\Background.jpg" -Destination 'C:\Windows\Web\Wallpaper\Theme1\Background.jpg'
     Copy-Item -Path "$CurrentLocation\CSImages\LockScreen.jpg" -Destination 'C:\Windows\Web\Screen\LockScreen.jpg'
+
+    Write-Host 'Set the lock screen for BCCS account. It is located at C:\Windows\Web\Screen\LockScreen.jpg.'
+    Write-Host 'Log into Student account and similarly set the lock screen'
+    Write-Host 'Log back into BCCS account and press enter. Do NOT sign out of Student account! Use Win + L to lock screen.'
+    Read-Host
 
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value 'C:\Windows\Web\Wallpaper\Theme1\Background.jpg'
     if (-Not (Test-Path 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent')) {
@@ -143,7 +147,6 @@ $script:CurrentLocation = Get-Location
 Get-Info
 Set-WindowsActivation
 Set-Users
-Set-StudentPermissions
 Set-MachinePermissions
 Set-ComputerName
 
