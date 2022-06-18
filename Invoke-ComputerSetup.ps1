@@ -9,7 +9,7 @@ function Get-Info {
 
 
 function Test-Activation {
-    if (Get-CIMInstance -query "select Name, LicenseStatus from SoftwareLicensingProduct where LicenseStatus=1" | Where-Object Name -like '*Windows*' |Select-Object LicenseStatus) {
+    if (Get-CIMInstance -query "select Name, LicenseStatus from SoftwareLicensingProduct where LicenseStatus=1" | Where-Object Name -like '*Windows*' | Select-Object LicenseStatus) {
         $True
     }
     else {
@@ -66,24 +66,25 @@ function Set-WindowsActivation {
 function Set-Users {
     New-LocalUser -Name 'Student' -Password $StudentPassword -FullName 'Student' -Description 'Student account with low privileges.' -AccountNeverExpires -PasswordNeverExpires -UserMayNotChangePassword
     Add-LocalGroupMember -Group 'Users' -Member 'Student'
-    Set-StudentPermissions
+    Set-UserPermissions
     Remove-LocalGroupMember -Group 'Users' -Member 'Student'
     Add-LocalGroupMember -Group 'Guests' -Member 'Student'
     Set-LocalUser -Name 'BCCS' -Password $BCCSPassword -FullName 'BCCS' -Description 'Main admin account of BCCS.' -PasswordNeverExpires $True -UserMayChangePassword $True
 }
 
 
-function Set-StudentPermissions {
+function Set-UserPermissions {
+    $WorkingDirectory = Get-Location
+    $ImageDirectory = "$WorkingDirectory\CSImages"
+    $PublicImages = 'C:\Users\Public\Pictures\CSImages'
+    Copy-Item -Path $ImageDirectory -Destination $PublicImages -Force
 
-    Copy-Item -Path "$CurrentLocation\CSImages\Background.jpg" -Destination 'C:\Windows\Web\Wallpaper\Theme1\Background.jpg'
-    Copy-Item -Path "$CurrentLocation\CSImages\LockScreen.jpg" -Destination 'C:\Windows\Web\Screen\LockScreen.jpg'
-
-    Write-Host 'Set the lock screen for BCCS account. It is located at C:\Windows\Web\Screen\LockScreen.jpg.'
+    Write-Host 'Set the lock screen for BCCS account. It is located in the Pictures folder.'
     Write-Host 'Log into Student account and similarly set the lock screen'
     Write-Host 'Log back into BCCS account and press enter. Do NOT sign out of Student account! Use Win + L to lock screen.'
     Read-Host
 
-    Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value 'C:\Windows\Web\Wallpaper\Theme1\Background.jpg'
+    Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value "$PublicImages\Background.jpg"
     if (-Not (Test-Path 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent')) {
         New-Item -Path 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent' -Force
     }
@@ -92,11 +93,11 @@ function Set-StudentPermissions {
     $StudentAcc = New-Object System.Security.Principal.NTAccount('Student')
     $StudentSID = $StudentAcc.Translate([System.Security.Principal.SecurityIdentifier])
 
-    New-PSDrive HKU Registry HKEY_USERS
+    New-PSDrive HKU Registry "HKEY_USERS\$StudentSID"
 
-    $RegistryPathPolicies = "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies"
-    $RegistryPathRSD = "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\RemovableStorageDevices"
-    $RegistryPathCloudContent = "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\CloudContent"
+    $RegistryPathPolicies = 'HKU:\Software\Microsoft\Windows\CurrentVersion\Policies'
+    $RegistryPathRSD = 'HKU:\Software\Policies\Microsoft\Windows\RemovableStorageDevices'
+    $RegistryPathCloudContent = 'HKU:\Software\Policies\Microsoft\Windows\CloudContent'
     $Keys = 'Explorer', 'ActiveDesktop', 'System', 'System', 'Explorer'
 
     foreach ($i in $Keys) {
@@ -115,7 +116,7 @@ function Set-StudentPermissions {
 
     New-ItemProperty -Path "$RegistryPathPolicies\Explorer" -Name 'NoControlPanel' -Value '1' -PropertyType 'DWORD'
     New-ItemProperty -Path "$RegistryPathPolicies\ActiveDesktop" -Name 'NoChangingWallPaper' -Value '1' -PropertyType 'DWORD'
-    New-ItemProperty -Path "$RegistryPathPolicies\System" -Name 'Wallpaper' -Value 'C:\Windows\Web\Wallpaper\Theme1\Background.jpg' -PropertyType 'String'
+    New-ItemProperty -Path "$RegistryPathPolicies\System" -Name 'Wallpaper' -Value "$PublicImages\Background.jpg" -PropertyType 'String'
     New-ItemProperty -Path "$RegistryPathPolicies\System" -Name 'WallpaperStyle' -Value '4' -PropertyType 'DWORD'
     New-ItemProperty -Path "$RegistryPathPolicies\Explorer" -Name 'DisablePersonalDirChange' -Value '1' -PropertyType 'DWORD'
     New-ItemProperty -Path $RegistryPathRSD -Name 'Deny_All' -Value '1' -PropertyType 'DWORD'
@@ -130,7 +131,7 @@ function Set-MachinePermissions {
         New-Item -Path $RegistryPathPersonalization -Force
     }
 
-    New-ItemProperty -Path $RegistryPathPersonalization -Name 'LockScreenImage' -Value 'C:\Windows\Web\Screen\LockScreen.jpg' -PropertyType 'String'
+    New-ItemProperty -Path $RegistryPathPersonalization -Name 'LockScreenImage' -Value "$PublicImages\LockScreen.jpg" -PropertyType 'String'
     New-ItemProperty -Path $RegistryPathPersonalization -Name 'LockScreenOverlaysDisabled' -Value '1' -PropertyType 'DWORD'
     New-ItemProperty -Path $RegistryPathPersonalization -Name 'NoChangingLockScreen' -Value '1' -PropertyType 'DWORD'
     New-ItemProperty -Path $RegistryPathPersonalization -Name 'NoLockScreenSlideshow' -Value '1' -PropertyType 'DWORD'
@@ -141,8 +142,6 @@ function Set-ComputerName {
     Rename-Computer -NewName $ComputerName    
 }
 
-
-$script:CurrentLocation = Get-Location
 
 Get-Info
 Set-WindowsActivation
