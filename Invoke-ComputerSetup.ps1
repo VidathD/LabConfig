@@ -9,10 +9,10 @@ function Get-Info {
 
 
 function Test-Activation {
-    if (Get-CIMInstance -query "select Name, LicenseStatus from SoftwareLicensingProduct where LicenseStatus=1" | Where-Object Name -like '*Windows*' | Select-Object LicenseStatus) {
+    If (Get-CIMInstance -query "select Name, LicenseStatus from SoftwareLicensingProduct where LicenseStatus=1" | Where-Object Name -like '*Windows*' | Select-Object LicenseStatus) {
         $True
     }
-    else {
+    Else {
         $False
     }
 }
@@ -21,41 +21,41 @@ function Test-Activation {
 function Set-WindowsActivation {
     Set-MpPreference -DisableBehaviorMonitoring $True -DisableRealtimeMonitoring $True -DisableRemovableDriveScanning $True
     Write-Host 'Activating Windows...'
-    if (Test-Activation) {
+    If (Test-Activation) {
         Write-Host 'Windows already activated!'
     }
-    else{
+    Else{
         ./KMS.bat
     }
 
     while (-NOT (Test-Activation)) {
         Write-Host 'Windows activation failed. Do you want to try again? (Yes[Y]/No[N])'
         $Activate = Read-Host
-        if ($Activate -eq 'Y' -or $Activate -eq 'Yes') {
+        If ($Activate -eq 'Y' -or $Activate -eq 'Yes') {
             ./KMS.bat
         }
 
-        elseif ($Activate -eq 'N' -or $Activate -eq 'No') {
+        ElseIf ($Activate -eq 'N' -or $Activate -eq 'No') {
             Write-Host 'Windows not activated. Do you want to continue? (Yes[Y]/No[N])'
             $Continue = Read-Host
             while ($True) {
-                if ($Continue -eq 'Y' -or $Continue -eq 'Yes') {
+                If ($Continue -eq 'Y' -or $Continue -eq 'Yes') {
                     Write-Host 'Continuing...'
                     break
                 }
-                elseif ($Continue -eq 'N' -or $Continue -eq 'No') {
+                ElseIf ($Continue -eq 'N' -or $Continue -eq 'No') {
                     Write-Host 'Exitting...'
                     exit
 
                 }
-                else {
+                Else {
                     Write-Host 'Please enter Yes/Y or No/N only.'
                 }
             }
             break
         }
 
-        else {
+        Else {
             Write-Host 'Please enter Yes/Y or No/N only.'
         }
     }
@@ -85,7 +85,7 @@ function Set-UserPermissions {
     Read-Host
 
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value "$PublicImages\Background.jpg"
-    if (-Not (Test-Path 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent')) {
+    If (-Not (Test-Path 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent')) {
         New-Item -Path 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent' -Force
     }
     New-ItemProperty -Path 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent' -Name 'DisableWindowsSpotlightFeatures' -Value '1' -PropertyType 'DWORD'
@@ -101,16 +101,16 @@ function Set-UserPermissions {
     $Keys = 'Explorer', 'ActiveDesktop', 'System', 'System', 'Explorer'
 
     foreach ($i in $Keys) {
-        if (-NOT (Test-Path "$RegistryPathPolicies\$i")) {
+        If (-NOT (Test-Path "$RegistryPathPolicies\$i")) {
             New-Item -Path "$RegistryPathPolicies\$i" -Force
         }
     }
 
-    if (-Not (Test-Path $RegistryPathRSD)) {
+    If (-Not (Test-Path $RegistryPathRSD)) {
         New-Item -Path $RegistryPathRSD -Force
     }
 
-    if (-Not (Test-Path $RegistryPathCloudContent)) {
+    If (-Not (Test-Path $RegistryPathCloudContent)) {
         New-Item -Path $RegistryPathCloudContent -Force
     }
 
@@ -127,7 +127,7 @@ function Set-UserPermissions {
 function Set-MachinePermissions {
     $RegistryPathPersonalization = 'HKLM:\Software\Policies\Microsoft\Windows\Personalization'
 
-    if (-NOT (Test-Path $RegistryPathPersonalization)) {
+    If (-NOT (Test-Path $RegistryPathPersonalization)) {
         New-Item -Path $RegistryPathPersonalization -Force
     }
 
@@ -142,13 +142,14 @@ function Set-ComputerName {
     Rename-Computer -NewName $ComputerName    
 }
 
+If (-Not ($MyInvocation.InvocationName -eq '.')) {
+    Get-Info
+    Set-WindowsActivation
+    Set-Users
+    Set-MachinePermissions
+    Set-ComputerName
 
-Get-Info
-Set-WindowsActivation
-Set-Users
-Set-MachinePermissions
-Set-ComputerName
-
-Write-Host "Restarting in 10 seconds..."
-Start-Sleep -Seconds 10
-Restart-Computer -Force
+    Write-Host "Restarting in 10 seconds..."
+    Start-Sleep -Seconds 10
+    Restart-Computer -Force
+}
