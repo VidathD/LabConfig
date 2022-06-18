@@ -1,12 +1,12 @@
-function Install-PowerShell {
-    $WorkingDirectory = Get-Location
-    $PwshPath  = '$env:ProgramFiles\PowerShell\7\pwsh.exe'
-    $TestParams = "Test-Path -Path `"$PwshPath`" -PathType Leaf"
-    $InstallerDirectory = "$WorkingDirectory\Setups"
-    $Installer = 'PowerShell-7.2.4-win-x64.msi'
-    #$InstallerDirectory = Get-ChildItem -Recurse | Where-Object {$_.Name -like 'PowerShell-*-win-x64.msi'} | Select-Object Directory
-    #$Installer = Get-ChildItem -Recurse | Where-Object {$_.Name -like 'PowerShell-*-win-x64.msi'} | Select-Object Name
+$script:WorkingDirectory = Get-Location
+$script:PwshPath  = '$env:ProgramFiles\PowerShell\7\pwsh.exe'
+$script:TestParams = "Test-Path -Path `"$PwshPath`" -PathType Leaf"
+$script:InstallerDirectory = "$WorkingDirectory\Setups"
+$script:Installer = 'PowerShell-7.2.4-win-x64.msi'
+#$script:InstallerDirectory = Get-ChildItem -Recurse | Where-Object {$_.Name -like 'PowerShell-*-win-x64.msi'} | Select-Object Directory
+#$script:Installer = Get-ChildItem -Recurse | Where-Object {$_.Name -like 'PowerShell-*-win-x64.msi'} | Select-Object Name
 
+function Install-PowerShell {
     while (-Not (Invoke-Expression $TestParams)) {
         Write-Host 'Do you want to install the included PowerShell version? (Yes[Y]/No[N])'
         $InstallIncluded = Read-Host
