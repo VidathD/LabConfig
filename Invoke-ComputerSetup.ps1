@@ -4,7 +4,9 @@ function Get-Info {
         $script:BCCSPassword = Read-Host -AsSecureString
         Write-Host "Confirm BCCS password:"
         $BCCSConfirm = Read-Host -AsSecureString
-        if ($BCCSPassword -eq $BCCSConfirm) {
+        $BCCSPasswordText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($BCCSPassword))
+        $BCCSConfirmText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($BCCSConfirm))
+        if (($BCCSPasswordText -ceq $BCCSConfirmText) -and (($BCCSPasswordText -or $BCCSConfirmText) -ne '')) {
             $BCCSMatch = $True
         }
         else {
@@ -17,7 +19,9 @@ function Get-Info {
         $script:StudentPassword = Read-Host -AsSecureString
         Write-Host "Confirm Student password:"
         $StudentConfirm = Read-Host -AsSecureString
-        if ($StudentPassword -eq $StudentConfirm) {
+        $StudentPasswordText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($StudentPassword))
+        $StudentConfirmText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($StudentConfirm))
+        if (($StudentPasswordText -ceq $StudentConfirmText) -and (($StudentPasswordText -or $StudentConfirmText) -ne '')) {
             $StudentMatch = $True
         }
         else {
@@ -41,9 +45,9 @@ function Test-Activation {
 
 
 function Invoke-WindowsActivation {
-    cmd.exe /C cscript C:\Windows\System32\slmgr.vbs /ipk W269N-WFGWX-YVC9B-4J6C9-T83GX
-    cmd.exe /C cscript C:\Windows\System32\slmgr.vbs /skms kms.lotro.cc
-    cmd.exe /C cscript C:\Windows\System32\slmgr.vbs /ato
+    Start-Process -FilePath 'cmd.exe' -ArgumentList '/C cscript C:\Windows\System32\slmgr.vbs /ipk W269N-WFGWX-YVC9B-4J6C9-T83GX' -WindowStyle 'Minimized'
+    Start-Process -FilePath 'cmd.exe' -ArgumentList '/C cscript C:\Windows\System32\slmgr.vbs /skms kms.lotro.cc' -WindowStyle 'Minimized'
+    Start-Process 'cmd.exe' -ArgumentList '/C cscript C:\Windows\System32\slmgr.vbs /ato' -WindowStyle 'Minimized'
 }
 
 
@@ -55,10 +59,12 @@ function Set-WindowsActivation {
     }
     else{
         Invoke-WindowsActivation
+        Start-Sleep -Seconds 5
         while (-NOT (Test-Activation)) {
             Write-Host 'Windows activation failed. Do you want to try again? (Yes[Y]/No[N])'
             $Activate = Read-Host
             if ($Activate -eq 'Y' -or $Activate -eq 'Yes') {
+                Write-Host 'Retrying Windows activation...'
                 Invoke-WindowsActivation
             }
     
@@ -105,8 +111,9 @@ function Set-UserPermissions {
     $WorkingDirectory = Get-Location
     $ImageSource = "$WorkingDirectory\CSImages"
     $ImageDestination = 'C:\Users\Public\Pictures\CSImages', 'C:\Users\BCCS\Pictures\CSImages', 'C:\Users\Student\Pictures\CSImages', 'C:\Windows\Web\CSImages'
-    Copy-Item -Path $ImageSource -Destination $ImageDestination -Recurse -Force
-
+    foreach ($i in $ImageDestination) {
+        Copy-Item -Path $ImageSource -Destination $i -Recurse -Force
+    }
     Write-Host 'Set the lock screen for BCCS account. It is located in the Pictures folder.'
     Write-Host 'Log into Student account and similarly set the lock screen'
     Write-Host 'Log back into BCCS account and press enter. Do NOT sign out of Student account! Use Win + L to lock screen.'
@@ -122,15 +129,15 @@ function Set-UserPermissions {
     $StudentAcc = New-Object System.Security.Principal.NTAccount('Student')
     $StudentSID = $StudentAcc.Translate([System.Security.Principal.SecurityIdentifier])
 
-    New-PSDrive HKU Registry "HKEY_USERS\$StudentSID"
+    New-PSDrive HKU Registry "HKEY_USERS"
 
-    $RegistryPathPolicies = 'HKU:\Software\Microsoft\Windows\CurrentVersion\Policies'
-    $RegistryPathRSD = 'HKU:\Software\Policies\Microsoft\Windows\RemovableStorageDevices'
-    $RegistryPathCloudContent = 'HKU:\Software\Policies\Microsoft\Windows\CloudContent'
-    $Keys = 'Explorer', 'ActiveDesktop', 'System', 'System', 'Explorer'
+    $RegistryPathPolicies = "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies"
+    $RegistryPathRSD = "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\RemovableStorageDevices"
+    $RegistryPathCloudContent = "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\CloudContent"
+    $Keys = 'Explorer', 'ActiveDesktop', 'System'
 
     foreach ($i in $Keys) {
-        if (-NOT (Test-Path "$RegistryPathPolicies\$i")) {
+        if (-Not (Test-Path "$RegistryPathPolicies\$i")) {
             New-Item -Path "$RegistryPathPolicies\$i" -Force
         }
     }
@@ -175,10 +182,10 @@ function Set-ComputerName {
 function Undo-RegistryChanges {
     $StudentAcc = New-Object System.Security.Principal.NTAccount('Student')
     $StudentSID = $StudentAcc.Translate([System.Security.Principal.SecurityIdentifier])
-    New-PSDrive HKU Registry "HKEY_USERS\$StudentSID"
+    New-PSDrive HKU Registry "HKEY_USERS"
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name 'WallPaper' -Value 'C:\Windows\web\wallpaper\Windows\img0.jpg'
-    $DeleteRegistryEntries = 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent\', 'HKU:\Software\Microsoft\Windows\CurrentVersion\Policies\', 'HKU:\Software\Policies\Microsoft\Windows\CloudContent\'
-    $DeleteRegistryKeys = 'HKU:\Software\Policies\Microsoft\Windows\RemovableStorageDevices', 'HKLM:\Software\Policies\Microsoft\Windows\Personalization'
+    $DeleteRegistryEntries = 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent\', "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies\", "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\CloudContent\"
+    $DeleteRegistryKeys = "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\RemovableStorageDevices", 'HKLM:\Software\Policies\Microsoft\Windows\Personalization'
     Remove-Item -Path $DeleteRegistryKeys
     Remove-Item -Path $DeleteRegistryEntries -Exclude '(Default)'
 }
@@ -186,11 +193,12 @@ function Undo-RegistryChanges {
 
 function Invoke-ComputerSetup {
     Get-Info
+    Clear-Host
     Set-WindowsActivation
+    Clear-Host
     Set-Users
     Set-MachinePermissions
     Set-ComputerName
-
     Write-Host "Restarting in 10 seconds..."
     Start-Sleep -Seconds 10
     Restart-Computer -Force
@@ -198,10 +206,5 @@ function Invoke-ComputerSetup {
 
 
 if (-Not ($MyInvocation.InvocationName -eq '.')) {
-    try {
         Invoke-ComputerSetup
-    }
-    finally {
-        PowerShell.exe
-    }
 }
