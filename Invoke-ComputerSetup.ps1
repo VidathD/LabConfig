@@ -1,8 +1,30 @@
 function Get-Info {
-    Write-Host "Enter BCCS password:"
-    $script:BCCSPassword = Read-Host -AsSecureString
-    Write-Host "Enter Student password:"
-    $script:StudentPassword = Read-Host -AsSecureString
+    while (-Not ($BCCSMatch)) {
+        Write-Host "Enter BCCS password:"
+        $script:BCCSPassword = Read-Host -AsSecureString
+        Write-Host "Confirm BCCS password:"
+        $BCCSConfirm = Read-Host -AsSecureString
+        if ($BCCSPassword -eq $BCCSConfirm) {
+            $BCCSMatch = $True
+        }
+        else {
+            Write-Host "Passwords do not match. Please enter them again."
+            $BCCSMatch = $False
+        }
+    }
+    while (-Not ($StudentMatch)) {
+        Write-Host "Enter Student password:"
+        $script:StudentPassword = Read-Host -AsSecureString
+        Write-Host "Confirm Student password:"
+        $StudentConfirm = Read-Host -AsSecureString
+        if ($StudentPassword -eq $StudentConfirm) {
+            $StudentMatch = $True
+        }
+        else {
+            Write-Host "Passwords do not match. Please enter them again."
+            $StudentMatch = $False
+        }
+    }
     Write-Host "Enter ComputerName:"
     $script:ComputerName = Read-Host
 }
