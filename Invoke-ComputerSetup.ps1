@@ -55,13 +55,11 @@ function Set-WindowsActivation {
     }
     else{
         Invoke-WindowsActivation
-        # ./KMS.bat
         while (-NOT (Test-Activation)) {
             Write-Host 'Windows activation failed. Do you want to try again? (Yes[Y]/No[N])'
             $Activate = Read-Host
             if ($Activate -eq 'Y' -or $Activate -eq 'Yes') {
                 Invoke-WindowsActivation
-                # ./KMS.bat
             }
     
             elseif ($Activate -eq 'N' -or $Activate -eq 'No') {
