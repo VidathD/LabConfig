@@ -63,7 +63,7 @@ function Test-Activation {
     # Check whether software with an active licence and a name that inclue "Windows" exists.
 
     # If it does, return $True.
-    if (Get-CIMInstance -query "select Name, LicenseStatus from SoftwareLicensingProduct where LicenseStatus=1" | Where-Object Name -like '*Windows*' | Select-Object LicenseStatus) {
+    if (Get-CIMInstance -query "select Name, LicenseStatus from SoftwareLicensingProduct where LicenseStatus=1" | Where-Object Name -like '*Windows*' | Select-Object -ExpandProperty LicenseStatus) {
         $True
     }
 
