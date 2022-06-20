@@ -163,7 +163,7 @@ function Set-UserPermissions {
 function Set-MachinePermissions {
     $RegistryPathPersonalization = 'HKLM:\Software\Policies\Microsoft\Windows\Personalization'
 
-    if (-NOT (Test-Path $RegistryPathPersonalization)) {
+    if (-Not (Test-Path $RegistryPathPersonalization)) {
         New-Item -Path $RegistryPathPersonalization -Force
     }
 
@@ -184,10 +184,8 @@ function Undo-RegistryChanges {
     $StudentSID = $StudentAcc.Translate([System.Security.Principal.SecurityIdentifier])
     New-PSDrive HKU Registry "HKEY_USERS"
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name 'WallPaper' -Value 'C:\Windows\web\wallpaper\Windows\img0.jpg'
-    $DeleteRegistryEntries = 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent\', "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies\", "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\CloudContent\"
-    $DeleteRegistryKeys = "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\RemovableStorageDevices", 'HKLM:\Software\Policies\Microsoft\Windows\Personalization'
-    Remove-Item -Path $DeleteRegistryKeys
-    Remove-Item -Path $DeleteRegistryEntries -Exclude '(Default)'
+    $DeleteRegistryKeys = 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent\', "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies\", "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\CloudContent\", "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\RemovableStorageDevices", 'HKLM:\Software\Policies\Microsoft\Windows\Personalization'
+    Remove-Item -Path $DeleteRegistryKeys -Recurse -Force
 }
 
 
