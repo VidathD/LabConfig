@@ -93,7 +93,6 @@ function Set-WindowsActivation {
     if (Test-Activation) {
         # Skip activation and continue the script.
         Write-Host 'Windows already activated!'
-        break
     }
 
     # If windows isn't activated,
