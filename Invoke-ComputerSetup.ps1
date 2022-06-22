@@ -174,6 +174,25 @@ function New-UsersRegistryDrive {
 
 
 
+# Function to create necessary registry paths.
+function Add-RegistryPaths {
+    # Create drive to access user registry.
+    New-UsersRegistryDrive
+
+    # Put all registry paths into a variable
+    $script:RegistryPath = 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent', "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies", "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\RemovableStorageDevices", "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\CloudContent", 'HKLM:\Software\Policies\Microsoft\Windows\CloudContent', 'HKLM:\Software\Policies\Microsoft\Windows\Personalization', 'HKLM:\Software\Policies\Microsoft\Windows\PersonalizationCSP'
+
+    # Create registry keys if they are missing.
+    foreach ($path in $RegistryPath) {
+        if (-Not (Test-Path $path)) {
+            New-Item -Path $path -Force
+        }
+    }
+}
+
+
+
+
 # Function to change the registry to set user permissions.
 function Set-UserPermissions {
     # Get the present working directory.
@@ -202,62 +221,43 @@ function Set-UserPermissions {
     # Change the desktop wallpaper of current user.
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value 'C:\Windows\Web\CSImages\Background.jpg'
 
-    # Create the registry path to needed to disable Windows Spotlight if it doesn't exist.
-    if (-Not (Test-Path 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent')) {
-        New-Item -Path 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent' -Force
-    }
-
     # Disalble Windows Spotlight features for user "BCCS".
-    New-ItemProperty -Path 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent' -Name 'DisableWindowsSpotlightFeatures' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[0]" -Name 'DisableWindowsSpotlightFeatures' -Value '1' -PropertyType 'DWORD'
 
-    # Create drive to access user registry.
-    New-UsersRegistryDrive
+    # Disable Windows Spotlight on lock screen for user "BCCS".
+    New-ItemProperty -Path "$RegistryPath[0]" -Name 'ConfigureWindowsSpotlight' -Value '2' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[0]" -Name 'IncludeEnterpriseSpotlight' -Value '0' -PropertyType 'DWORD'
 
-    # Set the registry paths that we need to change to variables.
-    $RegistryPathPolicies = "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies"
-    $RegistryPathRSD = "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\RemovableStorageDevices"
-    $RegistryPathCloudContent = "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\CloudContent"
-
-    # Set the registry keys that we need to change to an array.
-    $Keys = 'Explorer', 'ActiveDesktop', 'System'
-
-    # Create registry keys if they are missing.
-    foreach ($i in $Keys) {
-        if (-Not (Test-Path "$RegistryPathPolicies\$i")) {
-            New-Item -Path "$RegistryPathPolicies\$i" -Force
-        }
-    }
-
-    # Create registry keys if they are missing.
-    if (-Not (Test-Path $RegistryPathRSD)) {
-        New-Item -Path $RegistryPathRSD -Force
-    }
-
-    # Create registry keys if they are missing.
-    if (-Not (Test-Path $RegistryPathCloudContent)) {
-        New-Item -Path $RegistryPathCloudContent -Force
-    }
+    # Disable Windows Spotlight in settings for user "BCCS".
+    New-ItemProperty -Path "$RegistryPath[0]" -Name 'DisableWindowsSpotlightOnSettings' -Value '1' -PropertyType 'DWORD'
 
     # Disable Control Panel access by user "Student".
-    New-ItemProperty -Path "$RegistryPathPolicies\Explorer" -Name 'NoControlPanel' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[1]\Explorer" -Name 'NoControlPanel' -Value '1' -PropertyType 'DWORD'
 
     # Disable changing wallpaper by user "Student".
-    New-ItemProperty -Path "$RegistryPathPolicies\ActiveDesktop" -Name 'NoChangingWallPaper' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[1]\ActiveDesktop" -Name 'NoChangingWallPaper' -Value '1' -PropertyType 'DWORD'
 
     # Set the wallpaper of user "Student".
-    New-ItemProperty -Path "$RegistryPathPolicies\System" -Name 'Wallpaper' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String'
+    New-ItemProperty -Path "$RegistryPath[1]\System" -Name 'Wallpaper' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String'
 
     # Set the wallpaper style to "Fit".
-    New-ItemProperty -Path "$RegistryPathPolicies\System" -Name 'WallpaperStyle' -Value '4' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[1]\System" -Name 'WallpaperStyle' -Value '4' -PropertyType 'DWORD'
 
     # Disable changing locations of personal directories (Desktop, Documents, Downloads, Picures, Videos, etc...)  by user "Student".
-    New-ItemProperty -Path "$RegistryPathPolicies\Explorer" -Name 'DisablePersonalDirChange' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[1]\Explorer" -Name 'DisablePersonalDirChange' -Value '1' -PropertyType 'DWORD'
 
     # Disable access to removable storage media  by user "Student".
-    New-ItemProperty -Path $RegistryPathRSD -Name 'Deny_All' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[2]" -Name 'Deny_All' -Value '1' -PropertyType 'DWORD'
 
     # Disable Windows Spotlight features for user "Student.
-    New-ItemProperty -Path $RegistryPathCloudContent -Name 'DisableWindowsSpotlightFeatures' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[3]" -Name 'DisableWindowsSpotlightFeatures' -Value '1' -PropertyType 'DWORD'
+
+    # Disable Windows Spotlight on lock screen for user "Student".
+    New-ItemProperty -Path "$RegistryPath[3]" -Name 'ConfigureWindowsSpotlight' -Value '2' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[3]" -Name 'IncludeEnterpriseSpotlight' -Value '0' -PropertyType 'DWORD'
+
+    # Disable Windows Spotlight in settings for user "Student".
+    New-ItemProperty -Path "$RegistryPath[3]" -Name 'DisableWindowsSpotlightOnSettings' -Value '1' -PropertyType 'DWORD'
 }
 
 
@@ -301,25 +301,30 @@ function Set-Users {
 
 # Function to change the registry to set machine permissions.
 function Set-MachinePermissions {
-    # Set the registry key that we need to change to a variable.
-    $RegistryPathPersonalization = 'HKLM:\Software\Policies\Microsoft\Windows\Personalization'
-
-    # If the registry key we need doesn't exist, create it.
-    if (-NOT (Test-Path $RegistryPathPersonalization)) {
-        New-Item -Path $RegistryPathPersonalization -Force
-    }
+    # Disable cloud optimized content.
+    New-ItemProperty -Path "$RegistryPath[4]" -Name 'DisableCloudOptimizedContent' -Value '1' -PropertyType 'DWORD'
 
     # Set the default lock screen image.
-    New-ItemProperty -Path $RegistryPathPersonalization -Name 'LockScreenImage' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String'
+    New-ItemProperty -Path "$RegistryPath[5]" -Name 'LockScreenImage' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String'
 
     # Disable overlays on the lock screen.
-    New-ItemProperty -Path $RegistryPathPersonalization -Name 'LockScreenOverlaysDisabled' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[5]" -Name 'LockScreenOverlaysDisabled' -Value '1' -PropertyType 'DWORD'
 
     # Prevent changing of the lock screen.
-    New-ItemProperty -Path $RegistryPathPersonalization -Name 'NoChangingLockScreen' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[5]" -Name 'NoChangingLockScreen' -Value '1' -PropertyType 'DWORD'
 
     # Prevent using slideshow in lock screen.
-    New-ItemProperty -Path $RegistryPathPersonalization -Name 'NoLockScreenSlideshow' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path "$RegistryPath[5]" -Name 'NoLockScreenSlideshow' -Value '1' -PropertyType 'DWORD'
+
+    # Set the default lock screen image in Personalization CSP.
+    New-ItemProperty -Path "$RegistryPath[6]" -Name 'LockScreenImageUrl' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String'
+    New-ItemProperty -Path "$RegistryPath[6]" -Name 'LockScreenImagePath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String'
+    New-ItemProperty -Path "$RegistryPath[6]" -Name 'LockScreenImageStatus' -Value '1' -PropertyType 'DWORD' 
+
+    # Set the default desktop background in Personalization CSP.
+    New-ItemProperty -Path "$RegistryPath[6]" -Name 'DesktopImageUrl' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String'
+    New-ItemProperty -Path "$RegistryPath[6]" -Name 'DesktopImagePath' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String'
+    New-ItemProperty -Path "$RegistryPath[6]" -Name 'DesktopImageStatus' -Value '1' -PropertyType 'DWORD' 
 }
 
 
@@ -365,6 +370,9 @@ function Invoke-ComputerSetup {
 
     # Clear the screen.
     Clear-Host
+
+    # Create necessary registry paths.
+    Add-RegistryPaths
 
     # Create, modify and set permissions of users.
     Set-Users
