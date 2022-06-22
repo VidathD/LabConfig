@@ -1,54 +1,45 @@
+# Function to get and confirm password from user.
+function Get-Password {
+    param (
+        [string]$UserName
+    )
+    # Get the password for user.
+    while (-Not ($Match)) {
+        # Read the password from user input as a secure string.
+        Write-Host "Enter $UserName password:"
+        $Password = Read-Host -AsSecureString
+        # Read the password confirmation from user input and save as a secure string.
+        Write-Host "Confirm $UserName password:"
+        $Confirm = Read-Host -AsSecureString
+
+        # Convert password and confirmation to plaintext.
+        $PasswordText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password))
+        $ConfirmText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($Confirm))
+
+        # Check if password and confirmation match
+        if (($PasswordText -ceq $ConfirmText) -and (($PasswordText -or $ConfirmText) -ne '')) {
+            $Match = $True
+            return $Password
+        }
+
+        # If the password and confirmation don't match, run the loop till they do.
+        else {
+            Write-Host "Passwords do not match. Please enter them again."
+            $Match = $False
+        }
+    }
+}
+
+
+
+
 # Function to get user input needed to run the script.
 function Get-Info {
     # Get the password for BCCS user.
-    while (-Not ($BCCSMatch)) {
-        # Read the password from user input as a secure string.
-        Write-Host "Enter BCCS password:"
-        $script:BCCSPassword = Read-Host -AsSecureString
-        # Read the password confirmation from user input and save as a secure string.
-        Write-Host "Confirm BCCS password:"
-        $BCCSConfirm = Read-Host -AsSecureString
-
-        # Convert password and confirmation to plaintext.
-        $BCCSPasswordText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($BCCSPassword))
-        $BCCSConfirmText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($BCCSConfirm))
-
-        # Check if password and confirmation match
-        if (($BCCSPasswordText -ceq $BCCSConfirmText) -and (($BCCSPasswordText -or $BCCSConfirmText) -ne '')) {
-            $BCCSMatch = $True
-        }
-
-        # If the password and confirmation don't match, run the loop till they do.
-        else {
-            Write-Host "Passwords do not match. Please enter them again."
-            $BCCSMatch = $False
-        }
-    }
+    $script:BCCSPassword = Get-Password -UserName 'BCCS'
 
     # Get the password for Student user.
-    while (-Not ($StudentMatch)) {
-        # Read the password from user input as a secure string.
-        Write-Host "Enter Student password:"
-        $script:StudentPassword = Read-Host -AsSecureString
-        # Read the password confirmation from user input and save as a secure string.
-        Write-Host "Confirm Student password:"
-        $StudentConfirm = Read-Host -AsSecureString
-
-        # Convert password and confirmation to plaintext.
-        $StudentPasswordText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($StudentPassword))
-        $StudentConfirmText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($StudentConfirm))
-
-        # Check if password and confirmation match
-        if (($StudentPasswordText -ceq $StudentConfirmText) -and (($StudentPasswordText -or $StudentConfirmText) -ne '')) {
-            $StudentMatch = $True
-        }
-
-        # If the password and confirmation don't match, run the loop till they do.
-        else {
-            Write-Host "Passwords do not match. Please enter them again."
-            $StudentMatch = $False
-        }
-    }
+    $script:StudentPassword = Get-Password -UserName 'Student'
 
     # Get the hostname (computer name) for the computer.
     Write-Host "Enter ComputerName:"
@@ -289,6 +280,12 @@ function Set-Users {
 
     # Add the user "Student" to the localgroup "Guests".
     Add-LocalGroupMember -Group 'Guests' -Member 'Student'
+
+    # If the user "BCCS" doesn't exist,
+    if (-Not (Get-LocalUser -Name 'BCCS')) {
+        # Rename the current user to "BCCS".
+        Rename-LocalUser -Name $env:USERNAME -NewName 'BCCS'
+    }
 
     # Modify the user "BCCS" with the password taken from user input and add necessary permissions.
     Set-LocalUser -Name 'BCCS' -Password $BCCSPassword -FullName 'BCCS' -Description 'Main admin account of BCCS.' -PasswordNeverExpires $True -UserMayChangePassword $True
