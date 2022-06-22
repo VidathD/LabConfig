@@ -184,7 +184,7 @@ function Set-UserPermissions {
     $ImageSource = "$WorkingDirectory\CSImages"
 
     # Set the destinations to where the CSImages folder should be copied.
-    $ImageDestination = 'C:\Users\BCCS\Pictures\CSImages', 'C:\Users\Student\Pictures\CSImages', 'C:\Windows\Web\CSImages'
+    $ImageDestination = "$env:USERPROFILE\Pictures\CSImages", 'C:\Users\Student\Pictures\CSImages', 'C:\Windows\Web\CSImages'
 
     # Copy the CSImages folder to the destinations.
     foreach ($i in $ImageDestination) {
