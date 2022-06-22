@@ -168,7 +168,7 @@ function New-UsersRegistryDrive {
     $script:StudentSID = $StudentAcc.Translate([System.Security.Principal.SecurityIdentifier])
 
     # Create a new drive that gives us access to the registry of all users.
-    New-PSDrive HKU Registry "HKEY_USERS"
+    New-PSDrive -Name 'HKU' -PSProvider 'Registry' -Root 'HKEY_USERS' -Scope 'script'
 }
 
 
@@ -265,9 +265,24 @@ function Set-UserPermissions {
 
 # Function to create, modify and set permissions of users.
 function Set-Users {
-    # Create the new user "Student" with the password taken from user input with necessary permissions.
-    New-LocalUser -Name 'Student' -Password $StudentPassword -FullName 'Student' -Description 'Student account with low privileges.' -AccountNeverExpires -PasswordNeverExpires -UserMayNotChangePassword
-    
+    # If the user "BCCS" doesn't exist,
+    if (-Not (Get-LocalUser -Name 'BCCS')) {
+        # Rename the current user to "BCCS".
+        Rename-LocalUser -Name $env:USERNAME -NewName 'BCCS'
+    }
+
+    # Modify the user "BCCS" with the password taken from user input and add necessary permissions.
+    Set-LocalUser -Name 'BCCS' -Password $BCCSPassword -FullName 'BCCS' -Description 'Main admin account of BCCS.' -AccountNeverExpires -PasswordNeverExpires $True -UserMayChangePassword $True
+
+    # If the user "Student" doesn't exist,
+    if (-Not (Get-LocalUser -Name 'Student')) {
+        # Create the new user "Student" with the password taken from user input with necessary permissions.
+        New-LocalUser -Name 'Student'
+    }
+
+    # Modify the user "Student" with the password taken from user input and add necessary permissions.
+    Set-LocalUser -Name 'Student' -Password $StudentPassword -FullName 'Student' -Description 'Student account with low privileges.' -AccountNeverExpires -PasswordNeverExpires $True -UserMayChangePassword $False
+
     # Add the user "Student" to the localgroup "Users".
     Add-LocalGroupMember -Group 'Users' -Member 'Student'
 
@@ -279,15 +294,6 @@ function Set-Users {
 
     # Add the user "Student" to the localgroup "Guests".
     Add-LocalGroupMember -Group 'Guests' -Member 'Student'
-
-    # If the user "BCCS" doesn't exist,
-    if (-Not (Get-LocalUser -Name 'BCCS')) {
-        # Rename the current user to "BCCS".
-        Rename-LocalUser -Name $env:USERNAME -NewName 'BCCS'
-    }
-
-    # Modify the user "BCCS" with the password taken from user input and add necessary permissions.
-    Set-LocalUser -Name 'BCCS' -Password $BCCSPassword -FullName 'BCCS' -Description 'Main admin account of BCCS.' -PasswordNeverExpires $True -UserMayChangePassword $True
 }
 
 
