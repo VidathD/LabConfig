@@ -211,7 +211,7 @@ function Set-UserPermissions {
     Write-Host 'Log into Student account and similarly set the lock screen'
     Write-Host 'Log back into BCCS account and press enter. Do NOT sign out of Student account! Use Win + L to lock screen.'
     Write-Host 'Press Enter to continue...'
-    $null = Read-Host
+    Read-Host | Out-Null
     # Continue when user presses any key.
     # Write-Host -NoNewLine "Press any key to continue..."
     # $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
@@ -231,10 +231,11 @@ function Set-UserPermissions {
 
     # Disable Windows Spotlight in settings for user "BCCS".
     New-ItemProperty -Path $RegistryPathHKCU[1] -Name 'DisableWindowsSpotlightOnSettings' -Value '1' -PropertyType 'DWORD' -Force
-
-    # Disable rotating lock screen and lock screen overlay by Content Delivary Manager for user "BCCS".
-    New-ItemProperty -Path $RegistryPathHKCU[2] -Name 'RotatingLockScreenEnabled' -Value '0' -PropertyType 'DWORD' -Force
-    New-ItemProperty -Path $RegistryPathHKCU[2] -Name 'RotatingLockScreenOverlayEnabled' -Value '0' -PropertyType 'DWORD' -Force
+    Set-ItemProperty -Path $RegistryPathHKCU[2] -Name "RotatingLockScreenEnabled" -Value '0' -PropertyType 'DWORD' -Force
+    Set-ItemProperty -Path $RegistryPathHKCU[2] -Name "RotatingLockScreenOverlayEnabled" -Value '0' -PropertyType 'DWORD' -Force
+    Set-ItemProperty -Path $RegistryPathHKCU[2] -Name "ContentDeliveryAllowed" -Value '0' -PropertyType 'DWORD' -Force
+    Set-ItemProperty -Path $RegistryPathHKCU[2] -Name "SubscribedContent-338388Enabled" -Value '0' -PropertyType 'DWORD' -Force
+    Set-ItemProperty -Path $RegistryPathHKCU[2] -Name "SubscribedContent-338389Enabled" -Value '0' -PropertyType 'DWORD' -Force
 
     # Set lock screen for user "BCCS".
     New-ItemProperty -Path $RegistryPathHKCU[3] -Name 'LockImageFlags' -Value '0' -PropertyType 'DWORD' -Force
@@ -276,6 +277,9 @@ function Set-UserPermissions {
     # Disable rotating lock screen and lock screen overlay by Content Delivary Manager for user "Student".
     New-ItemProperty -Path $RegistryPathHCU[5] -Name 'RotatingLockScreenEnabled' -Value '0' -PropertyType 'DWORD' -Force
     New-ItemProperty -Path $RegistryPathHCU[5] -Name 'RotatingLockScreenOverlayEnabled' -Value '0' -PropertyType 'DWORD' -Force
+    Set-ItemProperty -Path $RegistryPathHCU[5] -Name "ContentDeliveryAllowed" -Value '0' -PropertyType 'DWORD' -Force
+    Set-ItemProperty -Path $RegistryPathHCU[5] -Name "SubscribedContent-338388Enabled" -Value '0' -PropertyType 'DWORD' -Force
+    Set-ItemProperty -Path $RegistryPathHCU[5] -Name "SubscribedContent-338389Enabled" -Value '0' -PropertyType 'DWORD' -Force
 
     # Set lock screen for user "Student".
     New-ItemProperty -Path $RegistryPathHCU[6] -Name 'LockImageFlags' -Value '0' -PropertyType 'DWORD' -Force
@@ -343,93 +347,59 @@ function Set-MachinePermissions {
     # Prevent using slideshow in lock screen.
     New-ItemProperty -Path $RegistryPathHKLM[1] -Name 'NoLockScreenSlideshow' -Value '1' -PropertyType 'DWORD' -Force
 
+    # Set Edu Policies
+    New-ItemProperty -Path $RegistryPathHKLM[2] -Name "SetEduPolicies" -Value 1 -PropertyType DWORD -Force
+    
     # Set the default lock screen image in Personalization CSP.
-    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'LockScreenImageUrl' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
-    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'LockScreenImagePath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
-    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'LockScreenImageStatus' -Value '1' -PropertyType 'DWORD' -Force
+    New-ItemProperty -Path $RegistryPathHKLM[3] -Name 'LockScreenImageUrl' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHKLM[3] -Name 'LockScreenImagePath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHKLM[3] -Name 'LockScreenImageStatus' -Value '1' -PropertyType 'DWORD' -Force
 
     # Set the default desktop background in Personalization CSP.
-    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'DesktopImageUrl' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String' -Force
-    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'DesktopImagePath' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String' -Force
-    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'DesktopImageStatus' -Value '1' -PropertyType 'DWORD' -Force
+    New-ItemProperty -Path $RegistryPathHKLM[3] -Name 'DesktopImageUrl' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHKLM[3] -Name 'DesktopImagePath' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHKLM[3] -Name 'DesktopImageStatus' -Value '1' -PropertyType 'DWORD' -Force
 }
 
 
 
 
 function Set-LockScreenBackground {
-	$WindowsVersion = [System.Environment]::OSVersion.Version.Major
-	# Copy relevant lockscreen backgrounds to the public user pictures folder
-	$LockScreenSource = "$WorkingDirectory\CSImages\LockScreen.jpg"
-	$LockScreenDestination = 'C:\Users\Public\Pictures'
-	Copy-Item $LockScreenSource $LockScreenDestination -Force
-	function Get-ScreenResolution {
-		# Credit: https://techibee.com/powershell/powershell-script-to-get-desktop-screen-resolution/1615        
-		[void] [Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
-		[void] [Reflection.Assembly]::LoadWithPartialName("System.Drawing")
-		$Screens = [system.windows.forms.screen]::AllScreens
-			foreach ($Screen in $Screens) {
-				$DeviceName = $Screen.DeviceName
-				$Width  = $Screen.Bounds.Width
-				$Height  = $Screen.Bounds.Height
-				$IsPrimary = $Screen.Primary
-				$OutputObj = New-Object -TypeName PSobject
-				$OutputObj | Add-Member -MemberType NoteProperty -Name DeviceName -Value $DeviceName
-				$OutputObj | Add-Member -MemberType NoteProperty -Name Width -Value $Width
-				$OutputObj | Add-Member -MemberType NoteProperty -Name Height -Value $Height
-				$OutputObj | Add-Member -MemberType NoteProperty -Name IsPrimaryMonitor -Value $IsPrimary
-				$OutputObj
-			}
-	}
-	$VideoController = (Get-WmiObject -Class Win32_VideoController).VideoModeDescription
-	$Screen = (Get-Screenresolution | Where-Object -property IsPrimaryMonitor -eq True)
-	if ($Screen.Width -eq 1280) { $Image = 'background1280x1024.jpg' }
-	elseif ($Screen.Width -eq 1920) { $Image = 'background1920x1080.jpg' }
-	elseif ($VideoController -like '*1920 x 1080*') { $Image = 'background1920x1080.jpg' }
-	else { $Image = 'background1280x1024.jpg' }
-	$LockScreenImage = "C:\Users\Public\Pictures\$Image"
-	if ($WindowsVersion -eq 6) {
-		Remove-Item -Path 'C:\Windows\System32\oobe\info\backgrounds\*' -Force
-		$LockScreenDestination = 'C:\Windows\System32\oobe\info\backgrounds\backgroundDefault.jpg'
-		Copy-Item $LockScreenImage $LockScreenDestination -Force
-		Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\Background" -Name "OEMBackground" -Value 1 -Force
-	} elseif ($WindowsVersion -eq 10) {
-		New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\SharedPC" -Name "SetEduPolicies" -Value 1 -PropertyType DWORD -Force | Out-Null
-		$RegKeyPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\PersonalizationCSP"
-		if (!(Test-Path $RegKeyPath)) {
-			New-Item -Path $RegKeyPath -Force | Out-Null
-		}
-		New-ItemProperty -Path $RegKeyPath -Name "LockScreenImageStatus" -Value 1 -PropertyType DWORD -Force | Out-Null
-		New-ItemProperty -Path $RegKeyPath -Name "LockScreenImagePath" -Value $LockScreenImage -PropertyType STRING -Force | Out-Null
-		New-ItemProperty -Path $RegKeyPath -Name "LockScreenImageUrl" -Value $LockScreenImage -PropertyType STRING -Force | Out-Null
-			# In case you want to force a corporate desktop image
-			# $DesktopImageValue = "C:\Users\Public\Pictures\$ImageWithDimensions"
-			# New-ItemProperty -Path $RegKeyPath -Name "DesktopImageStatus" -Value 1 -PropertyType DWORD -Force | Out-Null
-			# New-ItemProperty -Path $RegKeyPath -Name "DesktopImagePath" -Value $DesktopImageValue -PropertyType STRING -Force | Out-Null
-			# New-ItemProperty -Path $RegKeyPath -Name "DesktopImageUrl" -Value $DesktopImageValue -PropertyType STRING -Force | Out-Null
-		# Disable Windows 10 Spotlight for all users
-		New-PSDrive -PSProvider Registry -Name HKU -Root HKEY_USERS
-		$RegArray = Get-ChildItem -Directory -Name "HKU:"
-		foreach ($RegItem in $RegArray) {
-			$RegPath = "HKU:\$RegItem\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
-			Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
-			Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenOverlayEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
-			Set-ItemProperty -Path $RegPath -Name "ContentDeliveryAllowed" -Value 0 -Force -ErrorAction SilentlyContinue
-			Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338388Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
-			Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338389Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
-		}
-		# Disable Windows 10 Spotlight for current user (in case the 'all users' portion skipped the current user due to a permissions error)
-		$RegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
-		Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
-		Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenOverlayEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
-		Set-ItemProperty -Path $RegPath -Name "ContentDeliveryAllowed" -Value 0 -Force -ErrorAction SilentlyContinue
-		Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338388Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
-		Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338389Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
-	}
-	Write-Output "Used $Image for this display."
-	$Screen
-	$VideoController
+    New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\SharedPC" -Name "SetEduPolicies" -Value 1 -PropertyType DWORD -Force | Out-Null
+    $RegKeyPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\PersonalizationCSP"
+    if (!(Test-Path $RegKeyPath)) {
+        New-Item -Path $RegKeyPath -Force | Out-Null
+    }
+    New-ItemProperty -Path $RegKeyPath -Name "LockScreenImageStatus" -Value 1 -PropertyType DWORD -Force | Out-Null
+    New-ItemProperty -Path $RegKeyPath -Name "LockScreenImagePath" -Value $LockScreenImage -PropertyType STRING -Force | Out-Null
+    New-ItemProperty -Path $RegKeyPath -Name "LockScreenImageUrl" -Value $LockScreenImage -PropertyType STRING -Force | Out-Null
+        # In case you want to force a corporate desktop image
+        # $DesktopImageValue = "C:\Users\Public\Pictures\$ImageWithDimensions"
+        # New-ItemProperty -Path $RegKeyPath -Name "DesktopImageStatus" -Value 1 -PropertyType DWORD -Force | Out-Null
+        # New-ItemProperty -Path $RegKeyPath -Name "DesktopImagePath" -Value $DesktopImageValue -PropertyType STRING -Force | Out-Null
+        # New-ItemProperty -Path $RegKeyPath -Name "DesktopImageUrl" -Value $DesktopImageValue -PropertyType STRING -Force | Out-Null
+    # Disable Windows 10 Spotlight for all users
+    New-PSDrive -PSProvider Registry -Name HKU -Root HKEY_USERS
+    $RegArray = Get-ChildItem -Directory -Name "HKU:"
+    foreach ($RegItem in $RegArray) {
+        $RegPath = "HKU:\$RegItem\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+        Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenOverlayEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path $RegPath -Name "ContentDeliveryAllowed" -Value 0 -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338388Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338389Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
+    }
+    # Disable Windows 10 Spotlight for current user (in case the 'all users' portion skipped the current user due to a permissions error)
+    $RegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+    Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenOverlayEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $RegPath -Name "ContentDeliveryAllowed" -Value 0 -Force -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338388Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338389Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
 }
+Write-Output "Used $Image for this display."
+$Screen
+$VideoController
 
 
 
@@ -523,6 +493,7 @@ $script:RegistryPathHKU = @(
 $script:RegistryPathHKLM = @(
     'HKLM:\Software\Policies\Microsoft\Windows\CloudContent'
     'HKLM:\Software\Policies\Microsoft\Windows\Personalization'
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\SharedPC'
     'HKLM:\Software\Policies\Microsoft\Windows\PersonalizationCSP'
 )
 
