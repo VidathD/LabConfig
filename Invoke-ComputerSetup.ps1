@@ -364,46 +364,6 @@ function Set-MachinePermissions {
 
 
 
-function Set-LockScreenBackground {
-    New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\SharedPC" -Name "SetEduPolicies" -Value 1 -PropertyType DWORD -Force | Out-Null
-    $RegKeyPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\PersonalizationCSP"
-    if (!(Test-Path $RegKeyPath)) {
-        New-Item -Path $RegKeyPath -Force | Out-Null
-    }
-    New-ItemProperty -Path $RegKeyPath -Name "LockScreenImageStatus" -Value 1 -PropertyType DWORD -Force | Out-Null
-    New-ItemProperty -Path $RegKeyPath -Name "LockScreenImagePath" -Value $LockScreenImage -PropertyType STRING -Force | Out-Null
-    New-ItemProperty -Path $RegKeyPath -Name "LockScreenImageUrl" -Value $LockScreenImage -PropertyType STRING -Force | Out-Null
-        # In case you want to force a corporate desktop image
-        # $DesktopImageValue = "C:\Users\Public\Pictures\$ImageWithDimensions"
-        # New-ItemProperty -Path $RegKeyPath -Name "DesktopImageStatus" -Value 1 -PropertyType DWORD -Force | Out-Null
-        # New-ItemProperty -Path $RegKeyPath -Name "DesktopImagePath" -Value $DesktopImageValue -PropertyType STRING -Force | Out-Null
-        # New-ItemProperty -Path $RegKeyPath -Name "DesktopImageUrl" -Value $DesktopImageValue -PropertyType STRING -Force | Out-Null
-    # Disable Windows 10 Spotlight for all users
-    New-PSDrive -PSProvider Registry -Name HKU -Root HKEY_USERS
-    $RegArray = Get-ChildItem -Directory -Name "HKU:"
-    foreach ($RegItem in $RegArray) {
-        $RegPath = "HKU:\$RegItem\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
-        Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenOverlayEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path $RegPath -Name "ContentDeliveryAllowed" -Value 0 -Force -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338388Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338389Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
-    }
-    # Disable Windows 10 Spotlight for current user (in case the 'all users' portion skipped the current user due to a permissions error)
-    $RegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
-    Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenOverlayEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path $RegPath -Name "ContentDeliveryAllowed" -Value 0 -Force -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338388Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338389Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
-}
-Write-Output "Used $Image for this display."
-$Screen
-$VideoController
-
-
-
-
 # Function to rename the computer.
 function Set-ComputerName {
     # Set the hostname (computer name) to the name taken from user input.
