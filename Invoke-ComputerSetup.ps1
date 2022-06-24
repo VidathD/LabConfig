@@ -13,8 +13,8 @@ function Get-Password {
         $Confirm = Read-Host -AsSecureString
 
         # Convert password and confirmation to plaintext.
-        $PasswordText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password))
-        $ConfirmText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($Confirm))
+        $PasswordText = ConvertFrom-SecureString -SecureString $Password -AsPlainText
+        $ConfirmText = ConvertFrom-SecureString -SecureString $Confirm -AsPlainText
 
         # Check if password and confirmation match
         if (($PasswordText -ceq $ConfirmText) -and (($PasswordText -or $ConfirmText) -ne '')) {
@@ -50,7 +50,7 @@ function Get-Info {
 
 
 # Function to test the activation status of Windows.
-function Test-Activation {
+function Test-WindowsActivation {
     # Check whether software with an active licence and a name that inclue "Windows" exists.
 
     # If it does, return $True.
@@ -90,7 +90,7 @@ function Set-WindowsActivation {
     Write-Host 'Activating Windows...'
 
     # If Windows is already activated,
-    if (Test-Activation) {
+    if (Test-WindowsActivation) {
         # Skip activation and continue the script.
         Write-Host 'Windows already activated!'
     }
@@ -101,7 +101,7 @@ function Set-WindowsActivation {
         Invoke-WindowsActivation
 
         # If activation failed,
-        while (-Not (Test-Activation)) {
+        while (-Not (Test-WindowsActivation)) {
             # Ask user whether to try again.
             Write-Host 'Windows activation failed. Do you want to try again? (Yes[Y]/No[N])'
             $Activate = Read-Host
@@ -165,7 +165,7 @@ function New-UsersRegistryDrive {
     $StudentAcc = New-Object System.Security.Principal.NTAccount('Student')
 
     # Get the security identifier of the user "Student".
-    $script:StudentSID = $StudentAcc.Translate([System.Security.Principal.SecurityIdentifier])
+    $script:StudentSID = $StudentAcc.Translate([System.Security.Principal.SecurityIdentifier]) | Select-Object -ExpandProperty 'Value'
 
     # Create a new drive that gives us access to the registry of all users.
     New-PSDrive -Name 'HKU' -PSProvider 'Registry' -Root 'HKEY_USERS' -Scope 'script'
@@ -176,14 +176,11 @@ function New-UsersRegistryDrive {
 
 # Function to create necessary registry paths.
 function Add-RegistryPaths {
-    # Create drive to access user registry.
-    New-UsersRegistryDrive
-
-    # Put all registry paths into a variable
-    $script:RegistryPath = 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent', "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies", "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\RemovableStorageDevices", "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\CloudContent", 'HKLM:\Software\Policies\Microsoft\Windows\CloudContent', 'HKLM:\Software\Policies\Microsoft\Windows\Personalization', 'HKLM:\Software\Policies\Microsoft\Windows\PersonalizationCSP'
-
+    param (
+        [string]$Variable
+    )
     # Create registry keys if they are missing.
-    foreach ($path in $RegistryPath) {
+    foreach ($path in $Variable) {
         if (-Not (Test-Path $path)) {
             New-Item -Path $path -Force
         }
@@ -202,7 +199,7 @@ function Set-UserPermissions {
     $ImageSource = "$WorkingDirectory\CSImages"
 
     # Set the destinations to where the CSImages folder should be copied.
-    $ImageDestination = "$env:USERPROFILE\Pictures\CSImages", 'C:\Users\Student\Pictures\CSImages', 'C:\Windows\Web\CSImages'
+    $ImageDestination = "$env:USERPROFILE\Pictures\CSImages", 'C:\Windows\Web\CSImages'
 
     # Copy the CSImages folder to the destinations.
     foreach ($i in $ImageDestination) {
@@ -213,51 +210,78 @@ function Set-UserPermissions {
     Write-Host 'Set the lock screen for BCCS account. It is located in the Pictures folder.'
     Write-Host 'Log into Student account and similarly set the lock screen'
     Write-Host 'Log back into BCCS account and press enter. Do NOT sign out of Student account! Use Win + L to lock screen.'
-
+    Write-Host 'Press Enter to continue...'
+    $null = Read-Host
     # Continue when user presses any key.
-    Write-Host -NoNewLine "Press any key to continue..."
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    # Write-Host -NoNewLine "Press any key to continue..."
+    # $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+    # Create necessary registry paths for current user.
+    Add-RegistryPaths -Variable $RegistryPathHKCU
 
     # Change the desktop wallpaper of current user.
-    Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'WallPaper' -Value 'C:\Windows\Web\CSImages\Background.jpg'
+    Set-ItemProperty -Path $RegistryPathHKCU[0] -Name 'WallPaper' -Value 'C:\Windows\Web\CSImages\Background.jpg' -Force
 
     # Disalble Windows Spotlight features for user "BCCS".
-    New-ItemProperty -Path "$RegistryPath[0]" -Name 'DisableWindowsSpotlightFeatures' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHKCU[1] -Name 'DisableWindowsSpotlightFeatures' -Value '1' -PropertyType 'DWORD' -Force
 
     # Disable Windows Spotlight on lock screen for user "BCCS".
-    New-ItemProperty -Path "$RegistryPath[0]" -Name 'ConfigureWindowsSpotlight' -Value '2' -PropertyType 'DWORD'
-    New-ItemProperty -Path "$RegistryPath[0]" -Name 'IncludeEnterpriseSpotlight' -Value '0' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHKCU[1] -Name 'ConfigureWindowsSpotlight' -Value '2' -PropertyType 'DWORD' -Force
+    New-ItemProperty -Path $RegistryPathHKCU[1] -Name 'IncludeEnterpriseSpotlight' -Value '0' -PropertyType 'DWORD' -Force
 
     # Disable Windows Spotlight in settings for user "BCCS".
-    New-ItemProperty -Path "$RegistryPath[0]" -Name 'DisableWindowsSpotlightOnSettings' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHKCU[1] -Name 'DisableWindowsSpotlightOnSettings' -Value '1' -PropertyType 'DWORD' -Force
 
+    # Disable rotating lock screen and lock screen overlay by Content Delivary Manager for user "BCCS".
+    New-ItemProperty -Path $RegistryPathHKCU[2] -Name 'RotatingLockScreenEnabled' -Value '0' -PropertyType 'DWORD' -Force
+    New-ItemProperty -Path $RegistryPathHKCU[2] -Name 'RotatingLockScreenOverlayEnabled' -Value '0' -PropertyType 'DWORD' -Force
+
+    # Set lock screen for user "BCCS".
+    New-ItemProperty -Path $RegistryPathHKCU[3] -Name 'LockImageFlags' -Value '0' -PropertyType 'DWORD' -Force
+    New-ItemProperty -Path $RegistryPathHKCU[3] -Name 'PortraitAssetPath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHKCU[3] -Name 'LandscapeAssetPath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHKCU[3] -Name 'HotspotImageFolderPath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
+
+    # Create necessary registry paths for user "Student".
+    Add-RegistryPaths -Variable $RegistryPathHKU
+    
     # Disable Control Panel access by user "Student".
-    New-ItemProperty -Path "$RegistryPath[1]\Explorer" -Name 'NoControlPanel' -Value '1' -PropertyType 'DWORD'
-
-    # Disable changing wallpaper by user "Student".
-    New-ItemProperty -Path "$RegistryPath[1]\ActiveDesktop" -Name 'NoChangingWallPaper' -Value '1' -PropertyType 'DWORD'
-
-    # Set the wallpaper of user "Student".
-    New-ItemProperty -Path "$RegistryPath[1]\System" -Name 'Wallpaper' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String'
-
-    # Set the wallpaper style to "Fit".
-    New-ItemProperty -Path "$RegistryPath[1]\System" -Name 'WallpaperStyle' -Value '4' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHCU[0] -Name 'NoControlPanel' -Value '1' -PropertyType 'DWORD' -Force
 
     # Disable changing locations of personal directories (Desktop, Documents, Downloads, Picures, Videos, etc...)  by user "Student".
-    New-ItemProperty -Path "$RegistryPath[1]\Explorer" -Name 'DisablePersonalDirChange' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHCU[0] -Name 'DisablePersonalDirChange' -Value '1' -PropertyType 'DWORD' -Force
+    
+    # Disable changing wallpaper by user "Student".
+    New-ItemProperty -Path $RegistryPathHCU[1] -Name 'NoChangingWallPaper' -Value '1' -PropertyType 'DWORD' -Force
+
+    # Set the wallpaper of user "Student".
+    New-ItemProperty -Path $RegistryPathHCU[2] -Name 'Wallpaper' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String' -Force
+
+    # Set the wallpaper style to "Fit".
+    New-ItemProperty -Path $RegistryPathHCU[2] -Name 'WallpaperStyle' -Value '4' -PropertyType 'DWORD' -Force
 
     # Disable access to removable storage media  by user "Student".
-    New-ItemProperty -Path "$RegistryPath[2]" -Name 'Deny_All' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHCU[3] -Name 'Deny_All' -Value '1' -PropertyType 'DWORD' -Force
 
     # Disable Windows Spotlight features for user "Student.
-    New-ItemProperty -Path "$RegistryPath[3]" -Name 'DisableWindowsSpotlightFeatures' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHCU[4] -Name 'DisableWindowsSpotlightFeatures' -Value '1' -PropertyType 'DWORD' -Force
 
     # Disable Windows Spotlight on lock screen for user "Student".
-    New-ItemProperty -Path "$RegistryPath[3]" -Name 'ConfigureWindowsSpotlight' -Value '2' -PropertyType 'DWORD'
-    New-ItemProperty -Path "$RegistryPath[3]" -Name 'IncludeEnterpriseSpotlight' -Value '0' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHCU[4] -Name 'ConfigureWindowsSpotlight' -Value '2' -PropertyType 'DWORD' -Force
+    New-ItemProperty -Path $RegistryPathHCU[4] -Name 'IncludeEnterpriseSpotlight' -Value '0' -PropertyType 'DWORD' -Force
 
     # Disable Windows Spotlight in settings for user "Student".
-    New-ItemProperty -Path "$RegistryPath[3]" -Name 'DisableWindowsSpotlightOnSettings' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHCU[4] -Name 'DisableWindowsSpotlightOnSettings' -Value '1' -PropertyType 'DWORD' -Force
+    
+    # Disable rotating lock screen and lock screen overlay by Content Delivary Manager for user "Student".
+    New-ItemProperty -Path $RegistryPathHCU[5] -Name 'RotatingLockScreenEnabled' -Value '0' -PropertyType 'DWORD' -Force
+    New-ItemProperty -Path $RegistryPathHCU[5] -Name 'RotatingLockScreenOverlayEnabled' -Value '0' -PropertyType 'DWORD' -Force
+
+    # Set lock screen for user "Student".
+    New-ItemProperty -Path $RegistryPathHCU[6] -Name 'LockImageFlags' -Value '0' -PropertyType 'DWORD' -Force
+    New-ItemProperty -Path $RegistryPathHCU[6] -Name 'PortraitAssetPath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHCU[6] -Name 'LandscapeAssetPath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHCU[6] -Name 'HotspotImageFolderPath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
 }
 
 
@@ -268,7 +292,7 @@ function Set-Users {
     # If the user "BCCS" doesn't exist,
     if (-Not (Get-LocalUser -Name 'BCCS')) {
         # Rename the current user to "BCCS".
-        Rename-LocalUser -Name $env:USERNAME -NewName 'BCCS'
+        Rename-LocalUser -Name "$env:USERNAME" -NewName 'BCCS'
     }
 
     # Modify the user "BCCS" with the password taken from user input and add necessary permissions.
@@ -277,7 +301,7 @@ function Set-Users {
     # If the user "Student" doesn't exist,
     if (-Not (Get-LocalUser -Name 'Student')) {
         # Create the new user "Student" with the password taken from user input with necessary permissions.
-        New-LocalUser -Name 'Student'
+        New-LocalUser -Name 'Student' -Password $StudentPassword
     }
 
     # Modify the user "Student" with the password taken from user input and add necessary permissions.
@@ -301,30 +325,110 @@ function Set-Users {
 
 # Function to change the registry to set machine permissions.
 function Set-MachinePermissions {
+    # Create necessary registry paths for local machine.
+    Add-RegistryPaths -Variable $RegistryPathHKLM
+
     # Disable cloud optimized content.
-    New-ItemProperty -Path "$RegistryPath[4]" -Name 'DisableCloudOptimizedContent' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHKLM[0] -Name 'DisableCloudOptimizedContent' -Value '1' -PropertyType 'DWORD' -Force
 
     # Set the default lock screen image.
-    New-ItemProperty -Path "$RegistryPath[5]" -Name 'LockScreenImage' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String'
+    New-ItemProperty -Path $RegistryPathHKLM[1] -Name 'LockScreenImage' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
 
     # Disable overlays on the lock screen.
-    New-ItemProperty -Path "$RegistryPath[5]" -Name 'LockScreenOverlaysDisabled' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHKLM[1] -Name 'LockScreenOverlaysDisabled' -Value '1' -PropertyType 'DWORD' -Force
 
     # Prevent changing of the lock screen.
-    New-ItemProperty -Path "$RegistryPath[5]" -Name 'NoChangingLockScreen' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHKLM[1] -Name 'NoChangingLockScreen' -Value '1' -PropertyType 'DWORD' -Force
 
     # Prevent using slideshow in lock screen.
-    New-ItemProperty -Path "$RegistryPath[5]" -Name 'NoLockScreenSlideshow' -Value '1' -PropertyType 'DWORD'
+    New-ItemProperty -Path $RegistryPathHKLM[1] -Name 'NoLockScreenSlideshow' -Value '1' -PropertyType 'DWORD' -Force
 
     # Set the default lock screen image in Personalization CSP.
-    New-ItemProperty -Path "$RegistryPath[6]" -Name 'LockScreenImageUrl' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String'
-    New-ItemProperty -Path "$RegistryPath[6]" -Name 'LockScreenImagePath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String'
-    New-ItemProperty -Path "$RegistryPath[6]" -Name 'LockScreenImageStatus' -Value '1' -PropertyType 'DWORD' 
+    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'LockScreenImageUrl' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'LockScreenImagePath' -Value 'C:\Windows\Web\CSImages\LockScreen.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'LockScreenImageStatus' -Value '1' -PropertyType 'DWORD' -Force
 
     # Set the default desktop background in Personalization CSP.
-    New-ItemProperty -Path "$RegistryPath[6]" -Name 'DesktopImageUrl' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String'
-    New-ItemProperty -Path "$RegistryPath[6]" -Name 'DesktopImagePath' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String'
-    New-ItemProperty -Path "$RegistryPath[6]" -Name 'DesktopImageStatus' -Value '1' -PropertyType 'DWORD' 
+    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'DesktopImageUrl' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'DesktopImagePath' -Value 'C:\Windows\Web\CSImages\Background.jpg' -PropertyType 'String' -Force
+    New-ItemProperty -Path $RegistryPathHKLM[2] -Name 'DesktopImageStatus' -Value '1' -PropertyType 'DWORD' -Force
+}
+
+
+
+
+function Set-LockScreenBackground {
+	$WindowsVersion = [System.Environment]::OSVersion.Version.Major
+	# Copy relevant lockscreen backgrounds to the public user pictures folder
+	$LockScreenSource = "$WorkingDirectory\CSImages\LockScreen.jpg"
+	$LockScreenDestination = 'C:\Users\Public\Pictures'
+	Copy-Item $LockScreenSource $LockScreenDestination -Force
+	function Get-ScreenResolution {
+		# Credit: https://techibee.com/powershell/powershell-script-to-get-desktop-screen-resolution/1615        
+		[void] [Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
+		[void] [Reflection.Assembly]::LoadWithPartialName("System.Drawing")
+		$Screens = [system.windows.forms.screen]::AllScreens
+			foreach ($Screen in $Screens) {
+				$DeviceName = $Screen.DeviceName
+				$Width  = $Screen.Bounds.Width
+				$Height  = $Screen.Bounds.Height
+				$IsPrimary = $Screen.Primary
+				$OutputObj = New-Object -TypeName PSobject
+				$OutputObj | Add-Member -MemberType NoteProperty -Name DeviceName -Value $DeviceName
+				$OutputObj | Add-Member -MemberType NoteProperty -Name Width -Value $Width
+				$OutputObj | Add-Member -MemberType NoteProperty -Name Height -Value $Height
+				$OutputObj | Add-Member -MemberType NoteProperty -Name IsPrimaryMonitor -Value $IsPrimary
+				$OutputObj
+			}
+	}
+	$VideoController = (Get-WmiObject -Class Win32_VideoController).VideoModeDescription
+	$Screen = (Get-Screenresolution | Where-Object -property IsPrimaryMonitor -eq True)
+	if ($Screen.Width -eq 1280) { $Image = 'background1280x1024.jpg' }
+	elseif ($Screen.Width -eq 1920) { $Image = 'background1920x1080.jpg' }
+	elseif ($VideoController -like '*1920 x 1080*') { $Image = 'background1920x1080.jpg' }
+	else { $Image = 'background1280x1024.jpg' }
+	$LockScreenImage = "C:\Users\Public\Pictures\$Image"
+	if ($WindowsVersion -eq 6) {
+		Remove-Item -Path 'C:\Windows\System32\oobe\info\backgrounds\*' -Force
+		$LockScreenDestination = 'C:\Windows\System32\oobe\info\backgrounds\backgroundDefault.jpg'
+		Copy-Item $LockScreenImage $LockScreenDestination -Force
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\Background" -Name "OEMBackground" -Value 1 -Force
+	} elseif ($WindowsVersion -eq 10) {
+		New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\SharedPC" -Name "SetEduPolicies" -Value 1 -PropertyType DWORD -Force | Out-Null
+		$RegKeyPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\PersonalizationCSP"
+		if (!(Test-Path $RegKeyPath)) {
+			New-Item -Path $RegKeyPath -Force | Out-Null
+		}
+		New-ItemProperty -Path $RegKeyPath -Name "LockScreenImageStatus" -Value 1 -PropertyType DWORD -Force | Out-Null
+		New-ItemProperty -Path $RegKeyPath -Name "LockScreenImagePath" -Value $LockScreenImage -PropertyType STRING -Force | Out-Null
+		New-ItemProperty -Path $RegKeyPath -Name "LockScreenImageUrl" -Value $LockScreenImage -PropertyType STRING -Force | Out-Null
+			# In case you want to force a corporate desktop image
+			# $DesktopImageValue = "C:\Users\Public\Pictures\$ImageWithDimensions"
+			# New-ItemProperty -Path $RegKeyPath -Name "DesktopImageStatus" -Value 1 -PropertyType DWORD -Force | Out-Null
+			# New-ItemProperty -Path $RegKeyPath -Name "DesktopImagePath" -Value $DesktopImageValue -PropertyType STRING -Force | Out-Null
+			# New-ItemProperty -Path $RegKeyPath -Name "DesktopImageUrl" -Value $DesktopImageValue -PropertyType STRING -Force | Out-Null
+		# Disable Windows 10 Spotlight for all users
+		New-PSDrive -PSProvider Registry -Name HKU -Root HKEY_USERS
+		$RegArray = Get-ChildItem -Directory -Name "HKU:"
+		foreach ($RegItem in $RegArray) {
+			$RegPath = "HKU:\$RegItem\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+			Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
+			Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenOverlayEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
+			Set-ItemProperty -Path $RegPath -Name "ContentDeliveryAllowed" -Value 0 -Force -ErrorAction SilentlyContinue
+			Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338388Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
+			Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338389Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
+		}
+		# Disable Windows 10 Spotlight for current user (in case the 'all users' portion skipped the current user due to a permissions error)
+		$RegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+		Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
+		Set-ItemProperty -Path $RegPath -Name "RotatingLockScreenOverlayEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
+		Set-ItemProperty -Path $RegPath -Name "ContentDeliveryAllowed" -Value 0 -Force -ErrorAction SilentlyContinue
+		Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338388Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
+		Set-ItemProperty -Path $RegPath -Name "SubscribedContent-338389Enabled" -Value 0 -Force -ErrorAction SilentlyContinue
+	}
+	Write-Output "Used $Image for this display."
+	$Screen
+	$VideoController
 }
 
 
@@ -360,19 +464,20 @@ function Undo-RegistryChanges {
 # Function to set up the computer.
 function Invoke-ComputerSetup {
     # Get user input needed to run the script.
-    Get-Info
+    # Get-Info
+
+    $script:BCCSPassword = ConvertTo-SecureString -String 'BCCS' -AsPlainText -Force
+    $script:StudentPassword = ConvertTo-SecureString -String 'student' -AsPlainText -Force
+    $script:ComputerName = 'MTL-01'
 
     # Clear the screen.
-    Clear-Host
+    # Clear-Host
 
     # Manage Windows activation.
-    Set-WindowsActivation
+    # Set-WindowsActivation
 
     # Clear the screen.
-    Clear-Host
-
-    # Create necessary registry paths.
-    Add-RegistryPaths
+    # Clear-Host
 
     # Create, modify and set permissions of users.
     Set-Users
@@ -388,6 +493,38 @@ function Invoke-ComputerSetup {
     Start-Sleep -Seconds 10
     Restart-Computer -Force
 }
+
+
+
+
+# Put all registry paths for current user into a variable.
+$script:RegistryPathHKCU = @(
+    'HKCU:\Control Panel\Desktop'
+    'HKCU:\Software\Policies\Microsoft\Windows\CloudContent'
+    'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+    'HKCU:\Software\Microsoft\Windows\CurrentVersion\Lock Screen\Creative'
+)
+
+# Create drive to access user registry.
+New-UsersRegistryDrive
+
+# Put all registry paths for user "Student" into a variable.
+$script:RegistryPathHKU = @(
+    "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+    "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop"
+    "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Policies\System"
+    "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\RemovableStorageDevices"
+    "HKU:\$StudentSID\Software\Policies\Microsoft\Windows\CloudContent"
+    "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+    "HKU:\$StudentSID\Software\Microsoft\Windows\CurrentVersion\Lock Screen\Creative"
+)
+
+# Put all registry paths for local machine into a variable.
+$script:RegistryPathHKLM = @(
+    'HKLM:\Software\Policies\Microsoft\Windows\CloudContent'
+    'HKLM:\Software\Policies\Microsoft\Windows\Personalization'
+    'HKLM:\Software\Policies\Microsoft\Windows\PersonalizationCSP'
+)
 
 
 
