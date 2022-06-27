@@ -65,6 +65,7 @@ function Add-RegistryPaths {
 
 
 
+# Function to copy the images to necessary destinations.
 function Copy-Images {
     # Get the present working directory.
     $WorkingDirectory = Get-Location
@@ -297,24 +298,6 @@ function Set-ComputerName {
 
 
 
-# Function to undo registry changes.
-function Undo-RegistryChanges {
-    # Create drive to access user registry.
-    New-UsersRegistryDrive
-
-    # Change the desktop wallpaper of current user to default value.
-    Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name 'WallPaper' -Value 'C:\Windows\web\wallpaper\Windows\img0.jpg'
-
-    # Set the registry keys that need to be deleted to a variable.
-    $DeleteRegistryKeys = 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent\', "HKU:\Student\Software\Microsoft\Windows\CurrentVersion\Policies\", "HKU:\Student\Software\Policies\Microsoft\Windows\CloudContent\", "HKU:\Student\Software\Policies\Microsoft\Windows\RemovableStorageDevices", 'HKLM:\Software\Policies\Microsoft\Windows\Personalization'
-    
-    # Delete the registry keys.
-    Remove-Item -Path $DeleteRegistryKeys
-}
-
-
-
-
 # Function to set up the computer.
 function Invoke-ComputerSetup {
     # Get user input needed to run the script.
@@ -325,14 +308,9 @@ function Invoke-ComputerSetup {
     $script:ComputerName = 'MTL-01'
 
     # Clear the screen.
-    # Clear-Host
+    Clear-Host
 
-    # Manage Windows activation.
-    # Set-WindowsActivation
-
-    # Clear the screen.
-    # Clear-Host
-
+    # Copy the images to necessary destinations.
     Copy-Images
 
     # Create, modify and set permissions of users.
@@ -414,14 +392,24 @@ $script:RegistryPathHKLM = @(
 
 # If the script was not dot sourced, set up the computer.
 if (-Not ($MyInvocation.InvocationName -eq '.')) {
+    # Set up the computer.
     Invoke-ComputerSetup
+
+    # After the script runs,
     finally {
+        # If Student registry hive is loaded,
         if (Test-Path 'HKU:\Student') {
+            # Unload Student registry hive.
             reg unload 'HKU\Student'
         }
-        else {
+
+        # If default user registry hive is loaded,
+        elseif (Test-Path 'HKU:\Default') {
+            # Unload default user registry hive.
             reg unload 'HKU\Default'
         }
-        Remove-PSDrive -Name HKU
+
+        # Remove the 'HKU:' PpowerShell Drive.
+        Remove-PSDrive -Name 'HKU'
     }
 }
