@@ -98,10 +98,8 @@ function Set-BCCSUserPermissions {
 
     # Disable Windows Spotlight on lock screen for user "BCCS".
     New-ItemProperty -Path $RegistryPathHKCU[1] -Name 'ConfigureWindowsSpotlight' -Value '2' -PropertyType 'DWORD' -Force
-    New-ItemProperty -Path $RegistryPathHKCU[1] -Name 'IncludeEnterpriseSpotlight' -Value '0' -PropertyType 'DWORD' -Force
 
     # Disable Windows Spotlight in settings for user "BCCS".
-    New-ItemProperty -Path $RegistryPathHKCU[1] -Name 'DisableWindowsSpotlightOnSettings' -Value '1' -PropertyType 'DWORD' -Force
     New-ItemProperty -Path $RegistryPathHKCU[2] -Name "RotatingLockScreenEnabled" -Value '0' -PropertyType 'DWORD' -Force
     New-ItemProperty -Path $RegistryPathHKCU[2] -Name "RotatingLockScreenOverlayEnabled" -Value '0' -PropertyType 'DWORD' -Force
     New-ItemProperty -Path $RegistryPathHKCU[2] -Name "ContentDeliveryAllowed" -Value '0' -PropertyType 'DWORD' -Force
@@ -357,7 +355,6 @@ if (Get-LocalUser -Name 'Student' -ErrorAction SilentlyContinue) {
         'HKU:\Student\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
         'HKU:\Student\Software\Microsoft\Windows\CurrentVersion\Lock Screen\Creative'
         'HKU:\Student\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel'
-
     )
 }
 
