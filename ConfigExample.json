@@ -1,15 +1,27 @@
 [
     {
-        "Config" : [
+        "Configuration" : [
             {
-                "creds" : [
-                    {"BCCS" : "BCCS"},
-                    {"Student" : "Student"}
+                "Credentials" : [
+                    {
+                        "Administrator" : {
+                                "UserName" : "BCCS",
+                                "FullName" : "BCCS",
+                                "Password" : "BCCS"
+                        }
+                    },
+                    {
+                        "Guest" : {
+                                "UserName" : "Student",
+                                "FullName" : "Student",
+                                "Password" : "Student"
+                        }
+                    }
                 ]
             },  
             {"HostName" : "MTL-01"},
-            {"RelativeImageSource" : "CSImages"},
-            {"LiteralImageSource" : "C:\\Users\\BCCS\\Desktop\\LabConfig\\CSImages"},
+            {"ImageSource" : "$env:USERPROFILE\\Desktop\\LabConfig\\CSImages"},
+            {"ImageDestination" : ["$env:USERPROFILE\\Pictures\\CSImages", "C:\\Windows\\Web\\CSImages"]},
             {"StudentUserPresent" : "$False"}
         ]
     },
@@ -62,32 +74,32 @@
                         "Value" : [1, 1]
                     },
                     {
-                        "Path" : "HKU:\\Temp\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\ActiveDesktop",
+                        "Path" : "HKU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\ActiveDesktop",
                         "Key" : "NoChangingWallPaper",
                         "Value" : 1
                     },
                     {
-                        "Path" : "HKU:\\Temp\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+                        "Path" : "HKU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
                         "Key" : ["Wallpaper", "WallpaperStyle"],
                         "Value" : ["C:\\Windows\\Web\\CSImages\\Background.jpg", 4]
                     },
                     {
-                        "Path" : "HKU:\\Temp\\Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices",
+                        "Path" : "HKU:\\Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices",
                         "Key" : "Deny_All",
                         "Value" : 1
                     },
                     {
-                        "Path" : "HKU:\\Temp\\Software\\Policies\\Microsoft\\Windows\\CloudContent",
+                        "Path" : "HKU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent",
                         "Key" : ["DisableWindowsSpotlightFeatures", "ConfigureWindowsSpotlight"],
                         "Value" : [1, 2]
                     },
                     {
-                        "Path" : "HKU:\\Temp\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+                        "Path" : "HKU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
                         "Key" : ["RotatingLockScreenEnabled", "RotatingLockScreenOverlayEnabled", "ContentDeliveryAllowed", "SubscribedContent-338388Enabled", "SubscribedContent-338389Enabled"],
                         "Value" : [0, 0, 0, 0, 0]
                     },
                     {
-                        "Path" : "HKU:\\Temp\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel",
+                        "Path" : "HKU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel",
                         "Key" : "{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
                         "Value" : 0
                     }
