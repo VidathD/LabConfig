@@ -1,6 +1,6 @@
 # JSON configuration file.
 param (
-    [Parameter(Mandatory, Position=1)] [System.Object] $ConfigurationJsonFile
+    [Parameter(Mandatory, Position=1)] [String] $ConfigurationJsonFile
 )
 
 $script:Configuration = Get-Content $ConfigurationJsonFile | ConvertFrom-Json
