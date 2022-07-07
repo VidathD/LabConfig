@@ -1,9 +1,9 @@
 # JSON configuration file.
 param (
-    [Parameter(Mandatory, Position=1)] [string] $ConfigurationJsonFile
+    [Parameter(Mandatory, Position=1)] [System.Object] $ConfigurationJsonFile
 )
 
-$script:Configuration = Get-Content $ConfigurationFile | ConvertFrom-Json
+$script:Configuration = Get-Content $ConfigurationJsonFile | ConvertFrom-Json
 
 
 
@@ -85,8 +85,8 @@ function Add-RegistryEntries {
 # Function to copy the images to necessary destinations.
 function Copy-Images {
     # Set the location of CSImages folder.
-    if ($Configuration.Config.ImageSource) {
-        $ImageSource = $Configuration.Config.ImageSource
+    if ($Configuration.Configuration.ImageSource) {
+        $ImageSource = $Configuration.Configuration.ImageSource
     } 
     else {
         Write-Error -Message "Image source not set. Please enter the image source."
@@ -94,8 +94,13 @@ function Copy-Images {
     }
 
     # Set the destinations to where the CSImages folder should be copied.
-    $ImageDestination = "$env:USERPROFILE\Pictures\CSImages", 'C:\Windows\Web\CSImages'
-
+    if ($Configuration.Configuration.ImageDestination) {
+        $ImageDestination = $Configuration.Configuration.ImageDestination
+    }
+    else {
+        $ImageDestination = "$env:USERPROFILE\Pictures\CSImages", 'C:\Windows\Web\CSImages'
+    }
+    
     # Copy the CSImages folder to the destinations.
     foreach ($i in $ImageDestination) {
         Copy-Item -Path $ImageSource -Destination $i -Recurse -Force
@@ -125,8 +130,30 @@ function Set-AdminUser {
         $HKCURegistryEntries =  $Configuration.Registry.HKCU
     }
     else {
-        $HKCURegistryEntries = New-Object -TypeName 'PSObject' HKCU
-        Add-Member -InputObject $HKCURegistryEntries
+        $HKCUJson = 
+        '[
+            {
+                "Path" : "HKCU:\\Control Panel\\Desktop",
+                "Key" : "WallPaper",
+                "Value" : "C:\\Windows\\Web\\CSImages\\Background.jpg"
+            },
+            {
+                "Path" : "HKCU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent",
+                "Key" : ["DisableWindowsSpotlightFeatures", "ConfigureWindowsSpotlight"],
+                "Value" : [1, 2]
+            },
+            {
+                "Path" : "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+                "Key" : ["RotatingLockScreenEnabled", "RotatingLockScreenOverlayEnabled", "ContentDeliveryAllowed", "SubscribedContent-338388Enabled", "SubscribedContent-338389Enabled"],
+                "Value" : [0, 0, 0, 0, 0]
+            },
+            {
+                "Path" : "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel",
+                "Key" : "{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+                "Value" : 0
+            }
+        ]'
+        $HKCURegistryEntries = ConvertFrom-Json -InputObject $HKCUJson
     }
     Add-RegistryEntries -RegistryEntries $HKCURegistryEntries
 }
@@ -165,8 +192,45 @@ function Set-GuestUser {
         $HKURegistryEntries =  $Configuration.Registry.HKU
     }
     else {
-        $HKURegistryEntries = New-Object -TypeName 'PSObject' HKU
-        Add-Member -InputObject $HKURegistryEntries
+        $HKUJson = 
+        '[
+            {
+                "Path" : "HKU:\\Temp\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer",
+                "Key" : ["NoControlPanel", "DisablePersonalDirChange"],
+                "Value" : [1, 1]
+            },
+            {
+                "Path" : "HKU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\ActiveDesktop",
+                "Key" : "NoChangingWallPaper",
+                "Value" : 1
+            },
+            {
+                "Path" : "HKU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+                "Key" : ["Wallpaper", "WallpaperStyle"],
+                "Value" : ["C:\\Windows\\Web\\CSImages\\Background.jpg", 4]
+            },
+            {
+                "Path" : "HKU:\\Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices",
+                "Key" : "Deny_All",
+                "Value" : 1
+            },
+            {
+                "Path" : "HKU:\\Software\\Policies\\Microsoft\\Windows\\CloudContent",
+                "Key" : ["DisableWindowsSpotlightFeatures", "ConfigureWindowsSpotlight"],
+                "Value" : [1, 2]
+            },
+            {
+                "Path" : "HKU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+                "Key" : ["RotatingLockScreenEnabled", "RotatingLockScreenOverlayEnabled", "ContentDeliveryAllowed", "SubscribedContent-338388Enabled", "SubscribedContent-338389Enabled"],
+                "Value" : [0, 0, 0, 0, 0]
+            },
+            {
+                "Path" : "HKU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel",
+                "Key" : "{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+                "Value" : 0
+            }
+        ]'
+        $HKURegistryEntries = ConvertFrom-Json -InputObject $HKUJson
     }
     Add-RegistryEntries -RegistryEntries $HKURegistryEntries
 }
@@ -180,8 +244,20 @@ function Set-MachinePermissions {
         $HKLMRegistryEntries =  $Configuration.Registry.HKLM
     }
     else {
-        $HKLMRegistryEntries = New-Object -TypeName 'PSObject' HKLM
-        Add-Member -InputObject $HKLMRegistryEntries
+        $HKLMJson =
+        '[
+            {
+                "Path" : "HKLM:\\Software\\Policies\\Microsoft\\Windows\\CloudContent",
+                "Key" : "DisableCloudOptimizedContent",
+                "Value" : 1
+            },
+            {
+                "Path" : "HKLM:\\Software\\Policies\\Microsoft\\Windows\\Personalization",
+                "Key" : ["LockScreenImage", "LockScreenOverlaysDisabled", "NoChangingLockScreen", "NoLockScreenSlideshow"],
+                "Value" : ["C:\\Windows\\Web\\CSImages\\LockScreen.jpg", 1, 1, 1]
+            }
+        ]'
+        $HKLMRegistryEntries = ConvertFrom-Json -InputObject $HKLMJson
     }
     Add-RegistryEntries -RegistryEntries $HKLMRegistryEntries
 }
