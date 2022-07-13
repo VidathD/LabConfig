@@ -1,9 +1,19 @@
 # JSON configuration file.
 param (
-    [Parameter(Mandatory, Position=1)] [String] $ConfigurationJsonFile
+    [Parameter(Position=1)] [String] $ConfigurationJsonFile
 )
 
-$script:Configuration = Get-Content $ConfigurationJsonFile | ConvertFrom-Json
+if ($ConfigurationJsonFile) {
+    if (Test-Path -Path $ConfigurationJsonFile) {
+        $script:Configuration = Get-Content $ConfigurationJsonFile | ConvertFrom-Json
+    }
+    else {
+        Write-Host 'Configuration file not found!'
+    }
+}
+else {
+    Write-Host 'No configuration file supplied!'
+}
 
 
 
@@ -13,22 +23,23 @@ function Get-UserInfo {
     param (
         [Parameter(Mandatory)] [String] $Type
     )
+
     if ($Configuration.Configuration.Credentials.$Type.UserName) {
-        $Type = $Configuration.Configuration.Credentials.$Type.UserName
+        $UserName = $Configuration.Configuration.Credentials.$Type.UserName
     }
     else {
-        $Type = Read-Host -Prompt "Enter username of $Type account"
+        $UserName = Read-Host -Prompt "Enter username of $Type account"
     }
 
     if ($Configuration.Configuration.Credentials.$Type.FullName) {
-        $Type = $Configuration.Configuration.Credentials.$Type.FullName
+        $FullName = $Configuration.Configuration.Credentials.$Type.FullName
     }
     else {
-        $Type = Read-Host -Prompt "Enter full name of $Type account"
+        $FullName = Read-Host -Prompt "Enter full name of $Type account"
     }
 
     if ($Configuration.Configuration.Credentials.$Type.Password) {
-        $Password = ConvertTo-SecureString -String $Configuration.Configuration.Credentials.$Type.Password -AsPlainText
+        $Password = ConvertTo-SecureString -String ($Configuration.Configuration.Credentials.$Type.Password) -AsPlainText -Force
     }
     else {
         # Get the password for user.
@@ -39,18 +50,19 @@ function Get-UserInfo {
             $Confirm = Read-Host -Prompt "Confirm $UserName password" -AsSecureString
 
             # Convert password and confirmation to plaintext.
-            $PasswordText = ConvertFrom-SecureString -SecureString $Password -AsPlainText
-            $ConfirmText = ConvertFrom-SecureString -SecureString $Confirm -AsPlainText
+            # $PasswordText = ConvertFrom-SecureString -SecureString $Password -AsPlainText
+            # $ConfirmText = ConvertFrom-SecureString -SecureString $Confirm -AsPlainText
+            $PasswordText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password))
+            $ConfirmText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($Confirm))
 
             # Check if password and confirmation match
             if (($PasswordText -ceq $ConfirmText) -and (($PasswordText -or $ConfirmText) -ne '')) {
                 $Match = $True
-                return $Password
             }
 
             # If the password and confirmation don't match, run the loop till they do.
             else {
-                Write-Error -Message "Passwords do not match. Please enter them again."
+                Write-Host -Message "Passwords do not match. Please enter them again."
                 $Match = $False
             }
         }
@@ -89,7 +101,7 @@ function Copy-Images {
         $ImageSource = $Configuration.Configuration.ImageSource
     } 
     else {
-        Write-Error -Message "Image source not set. Please enter the image source."
+        Write-Host -Message "Image source not set. Please enter the image source."
         $ImageSource = Read-Host -Prompt "Image source"
     }
 
@@ -267,7 +279,7 @@ function Set-MachinePermissions {
 
 # Function to rename the computer.
 function Set-ComputerName {
-    if ($Configuration.Config.Hostname) {
+    if ($Configuration.Configuration.Hostname) {
         $ComputerName = $Configuration.Config.Hostname
     }
     else {
@@ -306,28 +318,30 @@ function Invoke-ComputerSetup {
 
 # If the script was not dot sourced, set up the computer.
 if (-Not ($MyInvocation.InvocationName -eq '.')) {
-    try {
-        # Set up the computer.
-        Invoke-ComputerSetup
-    }
-    catch { 
-        $_  
-    }
-    # After the script runs,
-    finally {
+    # try {
+    #     # Set up the computer.
+    Invoke-ComputerSetup
+    # }
+    # catch { 
+    #     $_  
+    # }
+    # # After the script runs,
+    # finally {
         # If Student registry hive is loaded,
-        if (Test-Path -Path "Registry::HKEY_USERS\$GuestSID" -PathType Container) {
-            # Unload Student registry hive.
-            reg unload "HKU\$GuestSID"
-        }
+    if (Test-Path -Path "Registry::HKEY_USERS\$GuestSID" -PathType Container) {
+        # Unload Student registry hive.
+        reg unload "HKU\$GuestSID"
+    }
 
-        # If default user registry hive is loaded,
-        else {
-            # Unload default user registry hive.
-            reg unload 'HKU\Default'
-        }
+    # If default user registry hive is loaded,
+    else {
+        # Unload default user registry hive.
+        reg unload 'HKU\Default'
+    }
 
-        # Remove the 'HKU:' PpowerShell Drive.
+    # Remove the 'HKU:' PpowerShell Drive.
+    if (Test-Path -Path "HKU") {
         Remove-PSDrive -Name 'HKU'
     }
+    # }
 }
